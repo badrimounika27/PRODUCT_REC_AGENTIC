@@ -35,6 +35,10 @@ from api.analytics import (
 )
 from api.analytics_dashboard import compute_dashboard_analytics
 from api.forecast_routes import router as forecast_router
+from contextlib import asynccontextmanager
+
+from db.connection import check_connection, init_schema, list_required_tables
+from db.sync_middleware import DbSyncMiddleware
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -45,10 +49,18 @@ from pydantic import BaseModel, Field
 LAST_PIPELINE_RESULT: dict[str, Any] | None = None
 AGENT_LAST_STATUS: dict[str, dict[str, Any]] = {}
 
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    init_schema()
+    yield
+
+
 app = FastAPI(
     title="RECAI Pipeline API",
     description="Agentic recommendation pipeline (Google ADK-ready) with REST endpoints.",
     version="0.1.0",
+    lifespan=_lifespan,
 )
 app.add_middleware(
     CORSMiddleware,
@@ -57,6 +69,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(DbSyncMiddleware)
 
 
 def _engine_root() -> Path:
@@ -489,6 +502,18 @@ def get_agent_status(agent_name: str) -> AgentStatusResponse:
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/health/db")
+def health_db() -> dict[str, Any]:
+    """Local MySQL connectivity and schema status (development only)."""
+    status = check_connection()
+    required = set(list_required_tables())
+    present = set(status.get("tables") or [])
+    status["required_tables"] = sorted(required)
+    status["missing_tables"] = sorted(required - present)
+    status["schema_complete"] = not status.get("missing_tables")
+    return status
 
 
 @app.get("/api/health/ai")
