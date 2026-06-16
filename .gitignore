@@ -1,0 +1,78 @@
+# =============================================================================
+# Secrets & runtime state — NEVER commit
+# =============================================================================
+.env
+.env.local
+*.env.local
+backend/.env
+backend/.env.local
+runtime_config.json
+backend/runtime_config.json
+
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.python-version
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# =============================================================================
+# Node / Vite (frontend)
+# =============================================================================
+node_modules/
+frontend/dist/
+.vite/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+
+
+# =============================================================================
+# Legacy reference material — out of scope for the code repo (~2 GB)
+# =============================================================================
+archive/docs/
+archive/BLUEPRINT_AGENTIC_PIPELINE.html
+archive/filter.py
+archive/Product Recommendation Flow.pptx
+archive/
+backend/outputs/
+backend/data/raw/*.csv
+# =============================================================================
+# Editor / IDE
+# =============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# =============================================================================
+# OS metadata
+# =============================================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+ehthumbs.db
+ehthumbs_vista.db
+
+# =============================================================================
+# Misc
+# =============================================================================
+*.bak
+*.tmp
+*.temp
