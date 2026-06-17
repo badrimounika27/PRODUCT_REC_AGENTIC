@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Bar,
@@ -22,6 +22,8 @@ import { ForecastInsights } from "../components/ForecastInsights";
 import { ForecastSimulator } from "../components/ForecastSimulator";
 import { FutureDecisionPanel } from "../components/FutureDecisionPanel";
 import { MonthlyPlanner } from "../components/MonthlyPlanner";
+import { ResizableChartCard } from "../components/analytics/ResizableChartCard";
+import { SplitPane } from "../components/analytics/SplitPane";
 import { futureDecisionBullets } from "../lib/decisionIntel";
 
 export function ForecastPage() {
@@ -35,13 +37,34 @@ export function ForecastPage() {
   const [monthIdx, setMonthIdx] = useState(() => new Date().getMonth());
   const [summary, setSummary] = useState<Record<string, unknown> | null>(null);
 
-  useEffect(() => {
-    fetchForecastContext()
-      .then(setCtx)
-      .catch((e) => setCtxErr(e instanceof Error ? e.message : String(e)));
-    fetchSummary().then(setSummary).catch(() => setSummary(null));
-    fetchDashboardAnalytics().then(setAnalytics).catch(() => setAnalytics(null));
+  const loadContext = useCallback(async () => {
+    try {
+      const r = await fetchForecastContext();
+      setCtx(r);
+      setCtxErr(null);
+    } catch (e) {
+      setCtxErr(e instanceof Error ? e.message : String(e));
+    }
   }, []);
+
+  const loadAnalytics = useCallback(async () => {
+    try {
+      const r = await fetchDashboardAnalytics();
+      setAnalytics(r);
+    } catch {
+      setAnalytics(null);
+    }
+  }, []);
+
+  const refreshForecastCharts = useCallback(async () => {
+    await Promise.all([loadContext(), loadAnalytics()]);
+  }, [loadContext, loadAnalytics]);
+
+  useEffect(() => {
+    loadContext();
+    fetchSummary().then(setSummary).catch(() => setSummary(null));
+    loadAnalytics();
+  }, [loadContext, loadAnalytics]);
 
   useEffect(() => {
     setLoading(true);
@@ -198,61 +221,61 @@ export function ForecastPage() {
         seasonalitySignals={seasonalitySignals}
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-surface-border bg-surface-card p-4">
-          <h2 className="text-sm font-semibold text-slate-300">Value by source</h2>
-          <div className="mt-4 h-64">
-            {barData.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#2a3344" />
-                  <XAxis dataKey="name" stroke="#64748b" />
-                  <YAxis stroke="#64748b" tickFormatter={(v) => fmtCompact(v)} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#12171f",
-                      border: "1px solid #2a3344",
-                      borderRadius: "8px",
-                    }}
-                  />
-                  <Bar dataKey="value" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="flex h-full items-center justify-center text-sm text-slate-500">
-                No data
-              </p>
-            )}
-          </div>
-        </div>
+      <SplitPane id="forecast-bars-pair">
+        <ResizableChartCard
+          id="forecast-value-by-source"
+          title="Value by source"
+          bodyClassName="h-64"
+          onRefresh={refreshForecastCharts}
+        >
+          {barData.length ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={barData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2a3344" />
+                <XAxis dataKey="name" stroke="#64748b" />
+                <YAxis stroke="#64748b" tickFormatter={(v) => fmtCompact(v)} />
+                <Tooltip
+                  contentStyle={{
+                    background: "#12171f",
+                    border: "1px solid #2a3344",
+                    borderRadius: "8px",
+                  }}
+                />
+                <Bar dataKey="value" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="flex h-full items-center justify-center text-sm text-slate-500">No data</p>
+          )}
+        </ResizableChartCard>
 
-        <div className="rounded-2xl border border-surface-border bg-surface-card p-4">
-          <h2 className="text-sm font-semibold text-slate-300">Top categories by amount</h2>
-          <div className="mt-4 h-64">
-            {catData.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={catData} layout="vertical" margin={{ left: 16 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#2a3344" />
-                  <XAxis type="number" stroke="#64748b" tickFormatter={(v) => fmtCompact(v)} />
-                  <YAxis dataKey="name" type="category" width={100} stroke="#64748b" fontSize={11} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#12171f",
-                      border: "1px solid #2a3344",
-                      borderRadius: "8px",
-                    }}
-                  />
-                  <Bar dataKey="value" fill="#34d399" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="flex h-full items-center justify-center text-sm text-slate-500">
-                No data
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
+        <ResizableChartCard
+          id="forecast-top-categories"
+          title="Top categories by amount"
+          bodyClassName="h-64"
+          onRefresh={refreshForecastCharts}
+        >
+          {catData.length ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={catData} layout="vertical" margin={{ left: 16 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2a3344" />
+                <XAxis type="number" stroke="#64748b" tickFormatter={(v) => fmtCompact(v)} />
+                <YAxis dataKey="name" type="category" width={100} stroke="#64748b" fontSize={11} />
+                <Tooltip
+                  contentStyle={{
+                    background: "#12171f",
+                    border: "1px solid #2a3344",
+                    borderRadius: "8px",
+                  }}
+                />
+                <Bar dataKey="value" fill="#34d399" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="flex h-full items-center justify-center text-sm text-slate-500">No data</p>
+          )}
+        </ResizableChartCard>
+      </SplitPane>
 
       <section className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-3">

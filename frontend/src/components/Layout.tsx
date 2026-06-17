@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { BarChart3, GitBranch, LayoutDashboard, LineChart, Sparkles } from "lucide-react";
 import { ChatAssistant } from "./ChatAssistant";
+import { ResizableChartProvider } from "./analytics/ResizableChartCard";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -46,7 +47,9 @@ export function Layout() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8">
-        <Outlet />
+        <ResizableChartProvider>
+          <Outlet />
+        </ResizableChartProvider>
       </main>
 
       <footer className="mx-auto max-w-7xl px-4 pb-8 text-center text-xs text-slate-600">
