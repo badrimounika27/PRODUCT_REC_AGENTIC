@@ -40,7 +40,7 @@ export function PromotionStrategyPanel({
           return (
             <li
               key={i}
-              className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-surface-border bg-surface-card px-4 py-3"
+              className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-surface-border bg-surface-card px-4 py-3 transition-all duration-200 ease-out hover:-translate-y-1 hover:border-amber-500/30 hover:bg-surface-card/90 hover:shadow-lg hover:shadow-black/30 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
             >
               <div className="flex gap-3">
                 <Icon className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
