@@ -82,8 +82,17 @@ def _split_sql_statements(sql_text: str) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
+def _quote_ident(name: str) -> str:
+    """Quote a MySQL identifier; only allow safe database names from env."""
+    if not re.fullmatch(r"[A-Za-z0-9_]+", name or ""):
+        raise ValueError(
+            f"Invalid MYSQL_DATABASE {name!r}: use letters, digits, and underscores only"
+        )
+    return f"`{name}`"
+
+
 def init_schema() -> dict[str, Any]:
-    """Apply schema.sql to local MySQL. Safe to call on startup."""
+    """Apply schema.sql to the database named in MYSQL_DATABASE. Safe on startup."""
     global _schema_ready
     if not is_db_enabled():
         return {"ok": False, "skipped": True, "reason": "MYSQL_ENABLED=false"}
@@ -93,6 +102,11 @@ def init_schema() -> dict[str, Any]:
     from urllib.parse import quote_plus
 
     settings = db_settings()
+    try:
+        db_ident = _quote_ident(settings.MYSQL_DATABASE)
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc)}
+
     user = quote_plus(settings.MYSQL_USER)
     password = quote_plus(settings.MYSQL_PASSWORD)
     bootstrap_url = (
@@ -105,12 +119,25 @@ def init_schema() -> dict[str, Any]:
     executed = 0
     try:
         with bootstrap_engine.connect() as conn:
+            # Database name comes from backend/.env — never hardcode credentials or DB name here.
+            conn.execute(
+                text(
+                    f"CREATE DATABASE IF NOT EXISTS {db_ident} "
+                    "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+                )
+            )
+            conn.execute(text(f"USE {db_ident}"))
+            executed += 2
             for stmt in statements:
                 conn.execute(text(stmt))
                 executed += 1
             conn.commit()
         _schema_ready = True
-        return {"ok": True, "statements_executed": executed}
+        return {
+            "ok": True,
+            "database": settings.MYSQL_DATABASE,
+            "statements_executed": executed,
+        }
     except Exception as exc:
         logger.warning("MySQL schema init skipped: %s", exc)
         return {"ok": False, "error": str(exc), "statements_executed": executed}

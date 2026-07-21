@@ -1,11 +1,6 @@
 -- RECAI local development schema (MySQL 8+)
--- Database: RECAI @ localhost:3306
-
-CREATE DATABASE IF NOT EXISTS RECAI
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-
-USE RECAI;
+-- Database name, host, user, and password come from backend/.env (MYSQL_*).
+-- Do not put credentials in this file. init_schema() creates/selects MYSQL_DATABASE.
 
 -- ---------------------------------------------------------------------------
 -- Sync audit log (INSERT only)

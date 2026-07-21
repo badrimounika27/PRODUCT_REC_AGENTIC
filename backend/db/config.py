@@ -1,4 +1,4 @@
-"""MySQL settings loaded from backend/.env (local development only)."""
+"""MySQL settings loaded from backend/.env at runtime (per-developer, never commit secrets)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,11 @@ _ENV_FILE = _BACKEND_ROOT / ".env"
 
 
 class DatabaseSettings(BaseSettings):
-    """Local MySQL configuration — no remote/cloud/shared server support."""
+    """Environment-specific MySQL config from backend/.env (and process env vars).
+
+    Copy backend/.env.example → backend/.env and set your own host/user/password/database.
+    Defaults below are non-secret fallbacks only; real credentials must live in .env.
+    """
 
     model_config = SettingsConfigDict(
         env_file=str(_ENV_FILE),
@@ -26,7 +30,7 @@ class DatabaseSettings(BaseSettings):
     MYSQL_PORT: int = Field(default=3306)
     MYSQL_DATABASE: str = Field(default="RECAI")
     MYSQL_USER: str = Field(default="root")
-    MYSQL_PASSWORD: str = Field(default="")
+    MYSQL_PASSWORD: str = Field(default="", description="Set in backend/.env — never commit.")
 
     @property
     def sqlalchemy_url(self) -> str:
