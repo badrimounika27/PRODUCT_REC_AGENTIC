@@ -82,6 +82,10 @@ body {
   .motion-safe-transition {
     transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
   }
+
+  .glass-card {
+    @apply rounded-2xl border border-surface-border/80 bg-surface-card/70 shadow-lg shadow-black/20 backdrop-blur-sm;
+  }
 }
 
 @keyframes recai-fade-in {

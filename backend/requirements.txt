@@ -14,3 +14,6 @@ scipy>=1.11.0
 kneed>=0.8.0
 matplotlib>=3.7.0
 google-generativeai>=0.8.0
+sqlalchemy>=2.0.0
+pymysql>=1.1.0
+cryptography>=41.0.0
