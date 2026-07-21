@@ -274,98 +274,119 @@ export function Dashboard() {
         <>
 
       {/* 1. KPIs — single "At a glance" card with collapsible body */}
-      <section
-        className="overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900/40 shadow-sm"
-        aria-label="At a glance"
-      >
-        <div
-          className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5 ${
-            atAGlanceExpanded ? "border-b border-slate-700/60" : ""
-          }`}
-        >
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">At a glance</h2>
-          <div className="ml-auto flex shrink-0 items-center gap-3">
-            {timePeriodLabel ? (
-              <p className="text-[11px] text-slate-500">Coverage: {timePeriodLabel}</p>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => setAtAGlanceExpanded((open) => !open)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-600/80 bg-slate-800/80 text-slate-400 transition-colors hover:bg-slate-700/80 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/60"
-              aria-expanded={atAGlanceExpanded}
-              aria-controls="at-a-glance-kpis"
-              aria-label={atAGlanceExpanded ? "Collapse at a glance" : "Expand at a glance"}
+      {(() => {
+        const kpis: Array<{
+          label: string;
+          value: string;
+          sub?: string;
+          trendPct?: number | null;
+          trendLabel?: string;
+        }> = [
+          {
+            label: "Total revenue",
+            value: fmtMoney(Number(overview.total_revenue ?? 0)),
+            trendPct: kpiTrends.total_revenue,
+            trendLabel: "vs last month",
+          },
+          {
+            label: "Total transactions",
+            value: fmtInt(Number(overview.total_transactions ?? 0)),
+            trendPct: kpiTrends.total_transactions,
+            trendLabel: "vs last month",
+          },
+          {
+            label: "Total stores",
+            value: fmtInt(Number(overview.total_stores ?? overview.total_customers ?? 0)),
+            sub: "Unique store locations",
+            trendPct: kpiTrends.total_customers,
+            trendLabel: "vs last month",
+          },
+          {
+            label: "Total recommendations",
+            value: fmtInt(Number(overview.total_recommendations ?? 0)),
+            sub: "Rows in recommendations output",
+          },
+          {
+            label: "Unique products",
+            value: fmtInt(Number(overview.total_unique_products ?? 0)),
+            trendPct: kpiTrends.total_unique_products,
+            trendLabel: "vs last month",
+          },
+          {
+            label: "Est. revenue opportunity",
+            value: fmtMoney(Number(overview.estimated_revenue_opportunity ?? 0)),
+            sub: "Total FINAL_ADJUSTED_AMT across recommendations",
+            trendPct: kpiTrends.estimated_revenue_opportunity,
+            trendLabel: "vs prior run",
+          },
+          {
+            label: "Avg monthly spend",
+            value: fmtMoney(Number(overview.average_monthly_spend ?? 0)),
+            sub: "Typical monthly spend per location (when available)",
+            trendPct: kpiTrends.average_monthly_spend,
+            trendLabel: "vs last month",
+          },
+          {
+            label: "Avg invoice value",
+            value: fmtMoney(Number(overview.average_invoice_value ?? 0)),
+            trendPct: kpiTrends.average_invoice_value,
+            trendLabel: "vs last month",
+          },
+        ];
+        // Auto-balancing 2-row layout on lg+ screens: cols = ceil(n/2).
+        // 8→4×2, 9→5+4, 10→5×2, 11→6+5, etc.
+        const lgCols = Math.max(2, Math.ceil(kpis.length / 2));
+        return (
+          <section
+            className="overflow-hidden rounded-xl border border-surface-border bg-surface-card/60 shadow-sm"
+            aria-label="At a glance"
+          >
+            <div
+              className={`flex flex-wrap items-center justify-between gap-3 px-3 py-2 sm:px-4 ${
+                atAGlanceExpanded ? "border-b border-surface-border" : ""
+              }`}
             >
-              {atAGlanceExpanded ? (
-                <ChevronUp className="h-4 w-4" aria-hidden />
-              ) : (
-                <ChevronDown className="h-4 w-4" aria-hidden />
-              )}
-            </button>
-          </div>
-        </div>
-        <div
-          id="at-a-glance-kpis"
-          className={`grid transition-[grid-template-rows] duration-300 ease-in-out motion-reduce:transition-none ${
-            atAGlanceExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-          }`}
-        >
-          <div className="min-h-0 overflow-hidden">
-            <div className="grid grid-cols-2 gap-4 p-4 sm:p-5 lg:grid-cols-3 xl:grid-cols-5">
-              <Kpi
-                label="Total revenue"
-                value={fmtMoney(Number(overview.total_revenue ?? 0))}
-                trendPct={kpiTrends.total_revenue}
-                trendLabel="vs last month"
-              />
-              <Kpi
-                label="Total transactions"
-                value={fmtInt(Number(overview.total_transactions ?? 0))}
-                trendPct={kpiTrends.total_transactions}
-                trendLabel="vs last month"
-              />
-              <Kpi
-                label="Total stores"
-                value={fmtInt(Number(overview.total_stores ?? overview.total_customers ?? 0))}
-                sub="Unique store locations"
-                trendPct={kpiTrends.total_customers}
-                trendLabel="vs last month"
-              />
-              <Kpi
-                label="Total recommendations"
-                value={fmtInt(Number(overview.total_recommendations ?? 0))}
-                sub="Rows in recommendations output"
-              />
-              <Kpi
-                label="Unique products"
-                value={fmtInt(Number(overview.total_unique_products ?? 0))}
-                trendPct={kpiTrends.total_unique_products}
-                trendLabel="vs last month"
-              />
-              <Kpi
-                label="Est. revenue opportunity"
-                value={fmtMoney(Number(overview.estimated_revenue_opportunity ?? 0))}
-                sub="Total FINAL_ADJUSTED_AMT across recommendations"
-                trendPct={kpiTrends.estimated_revenue_opportunity}
-                trendLabel="vs prior run"
-              />
-              <Kpi
-                label="Avg monthly spend"
-                value={fmtMoney(Number(overview.average_monthly_spend ?? 0))}
-                sub="Typical monthly spend per location (when available)"
-                trendPct={kpiTrends.average_monthly_spend}
-                trendLabel="vs last month"
-              />
-              <Kpi
-                label="Avg invoice value"
-                value={fmtMoney(Number(overview.average_invoice_value ?? 0))}
-                trendPct={kpiTrends.average_invoice_value}
-                trendLabel="vs last month"
-              />
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">At a glance</h2>
+              <div className="ml-auto flex shrink-0 items-center gap-3">
+                {timePeriodLabel ? (
+                  <p className="text-[11px] text-slate-500">Coverage: {timePeriodLabel}</p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setAtAGlanceExpanded((open) => !open)}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-surface-border bg-surface-raised text-slate-400 transition-colors hover:bg-surface-card hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/60"
+                  aria-expanded={atAGlanceExpanded}
+                  aria-controls="at-a-glance-kpis"
+                  aria-label={atAGlanceExpanded ? "Collapse at a glance" : "Expand at a glance"}
+                >
+                  {atAGlanceExpanded ? (
+                    <ChevronUp className="h-4 w-4" aria-hidden />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" aria-hidden />
+                  )}
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      </section>
+            <div
+              id="at-a-glance-kpis"
+              className={`grid transition-[grid-template-rows] duration-300 ease-in-out motion-reduce:transition-none ${
+                atAGlanceExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+              }`}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div
+                  className="kpi-grid grid grid-cols-2 gap-2 p-2.5 sm:grid-cols-3 sm:p-3 md:grid-cols-4"
+                  style={{ ["--kpi-lg-cols" as string]: lgCols } as React.CSSProperties}
+                >
+                  {kpis.map((k) => (
+                    <Kpi key={k.label} {...k} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* L2 seasonal demand index — bar chart; directly under “At a glance”, above “Purchase behavior” */}
       <section>
@@ -779,13 +800,13 @@ function Kpi({
   const arrow = positive ? "↑" : "↓";
   const trendText = hasTrend ? `${arrow} ${Math.abs(trendPct ?? 0).toFixed(1)}% ${trendLabel ?? ""}`.trim() : null;
   return (
-    <div className="flex flex-col justify-between rounded-lg border border-slate-700/80 bg-slate-900/30 p-4 text-left transition-all duration-200 ease-out hover:-translate-y-1 hover:border-slate-600/90 hover:bg-slate-900/50 hover:shadow-lg hover:shadow-black/30 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-2 font-mono text-lg font-semibold tabular-nums text-slate-100">{value}</p>
+    <div className="flex min-w-0 flex-col justify-between rounded-lg border border-surface-border bg-surface-raised/60 px-2.5 py-2 text-left transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-slate-500/70 hover:bg-surface-raised hover:shadow-md hover:shadow-black/20 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+      <p className="truncate text-[10px] font-medium uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-1 truncate font-mono text-base font-semibold tabular-nums text-slate-100" title={value}>{value}</p>
       {trendText ? (
-        <p className={`mt-1 text-[11px] font-medium ${positive ? "text-emerald-400" : "text-rose-400"}`}>{trendText}</p>
+        <p className={`mt-0.5 truncate text-[10px] font-medium ${positive ? "text-emerald-500 dark:text-emerald-400" : "text-rose-500 dark:text-rose-400"}`}>{trendText}</p>
       ) : null}
-      {sub ? <p className="mt-1 text-[10px] text-slate-600">{sub}</p> : null}
+      {sub ? <p className="mt-0.5 line-clamp-2 text-[10px] leading-tight text-slate-500">{sub}</p> : null}
     </div>
   );
 }

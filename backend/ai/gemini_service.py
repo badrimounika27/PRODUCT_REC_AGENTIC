@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 _RECAI_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(_RECAI_ROOT / ".env", override=True)
 
-DEFAULT_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+DEFAULT_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
 
 
 def _ensure_configured() -> None:

@@ -2,8 +2,75 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Theme tokens
+   Values are RGB triplets so Tailwind's <alpha-value> works
+   ============================================================ */
+
 :root {
+  color-scheme: light;
+
+  --color-surface: 248 250 252;
+  --color-surface-card: 255 255 255;
+  --color-surface-raised: 241 245 249;
+  --color-surface-border: 203 213 225;
+
+  --color-accent: 59 130 246;
+  --color-accent-dim: 37 99 235;
+
+  --color-mint: 5 150 105;
+  --color-amber: 217 119 6;
+
+  --color-slate-50: 15 23 42;
+  --color-slate-100: 15 23 42;
+  --color-slate-200: 30 41 59;
+  --color-slate-300: 51 65 85;
+  --color-slate-400: 71 85 105;
+  --color-slate-500: 100 116 139;
+  --color-slate-600: 148 163 184;
+  --color-slate-700: 203 213 225;
+  --color-slate-800: 226 232 240;
+  --color-slate-900: 241 245 249;
+  --color-slate-950: 248 250 252;
+
+  --color-app-bg: 248 250 252;
+  --color-app-text: 15 23 42;
+}
+
+:root.dark {
   color-scheme: dark;
+
+  --color-surface: 12 15 20;
+  --color-surface-card: 18 23 31;
+  --color-surface-raised: 26 33 48;
+  --color-surface-border: 42 51 68;
+
+  --color-accent: 59 130 246;
+  --color-accent-dim: 37 99 235;
+
+  --color-mint: 52 211 153;
+  --color-amber: 251 191 36;
+
+  --color-slate-50: 248 250 252;
+  --color-slate-100: 241 245 249;
+  --color-slate-200: 226 232 240;
+  --color-slate-300: 203 213 225;
+  --color-slate-400: 148 163 184;
+  --color-slate-500: 100 116 139;
+  --color-slate-600: 71 85 105;
+  --color-slate-700: 51 65 85;
+  --color-slate-800: 30 41 59;
+  --color-slate-900: 15 23 42;
+  --color-slate-950: 2 6 23;
+
+  --color-app-bg: 12 15 20;
+  --color-app-text: 241 245 249;
+}
+
+html,
+body {
+  background-color: rgb(var(--color-app-bg));
+  color: rgb(var(--color-app-text));
 }
 
 body {
@@ -23,5 +90,23 @@ body {
   }
   to {
     opacity: 1;
+  }
+}
+
+/* Recharts SVG tooltip readability in light mode */
+:root:not(.dark) .recharts-default-tooltip {
+  background-color: #ffffff !important;
+  border-color: rgb(203 213 225) !important;
+  color: rgb(15 23 42) !important;
+}
+
+/* ============================================================
+   Dynamic 2-row auto-balancing grid for "At a Glance" KPIs.
+   The card container sets --kpi-lg-cols = ceil(n/2) inline.
+   Small screens keep the fixed responsive tailwind columns.
+   ============================================================ */
+@media (min-width: 1024px) {
+  .kpi-grid {
+    grid-template-columns: repeat(var(--kpi-lg-cols, 5), minmax(0, 1fr));
   }
 }
