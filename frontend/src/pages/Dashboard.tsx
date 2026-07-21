@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Area,
@@ -48,6 +49,7 @@ export function Dashboard() {
   const [l2Options, setL2Options] = useState<string[]>([]);
   const [l2Selected, setL2Selected] = useState("");
   const [l2Season, setL2Season] = useState<Awaited<ReturnType<typeof fetchSeasonalityByCategory>> | null>(null);
+  const [atAGlanceExpanded, setAtAGlanceExpanded] = useState(true);
 
   const loadAnalytics = useCallback(async () => {
     try {
@@ -271,65 +273,97 @@ export function Dashboard() {
       {!loading ? (
         <>
 
-      {/* 1. KPIs */}
-      <section>
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+      {/* 1. KPIs — single "At a glance" card with collapsible body */}
+      <section
+        className="overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900/40 shadow-sm"
+        aria-label="At a glance"
+      >
+        <div
+          className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5 ${
+            atAGlanceExpanded ? "border-b border-slate-700/60" : ""
+          }`}
+        >
           <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">At a glance</h2>
-          {timePeriodLabel ? (
-            <p className="text-[11px] text-slate-500">Coverage: {timePeriodLabel}</p>
-          ) : null}
+          <div className="ml-auto flex shrink-0 items-center gap-3">
+            {timePeriodLabel ? (
+              <p className="text-[11px] text-slate-500">Coverage: {timePeriodLabel}</p>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setAtAGlanceExpanded((open) => !open)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-600/80 bg-slate-800/80 text-slate-400 transition-colors hover:bg-slate-700/80 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/60"
+              aria-expanded={atAGlanceExpanded}
+              aria-controls="at-a-glance-kpis"
+              aria-label={atAGlanceExpanded ? "Collapse at a glance" : "Expand at a glance"}
+            >
+              {atAGlanceExpanded ? (
+                <ChevronUp className="h-4 w-4" aria-hidden />
+              ) : (
+                <ChevronDown className="h-4 w-4" aria-hidden />
+              )}
+            </button>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
-          <Kpi
-            label="Total revenue"
-            value={fmtMoney(Number(overview.total_revenue ?? 0))}
-            trendPct={kpiTrends.total_revenue}
-            trendLabel="vs last month"
-          />
-          <Kpi
-            label="Total transactions"
-            value={fmtInt(Number(overview.total_transactions ?? 0))}
-            trendPct={kpiTrends.total_transactions}
-            trendLabel="vs last month"
-          />
-          <Kpi
-            label="Total stores"
-            value={fmtInt(Number(overview.total_stores ?? overview.total_customers ?? 0))}
-            sub="Unique store locations"
-            trendPct={kpiTrends.total_customers}
-            trendLabel="vs last month"
-          />
-          <Kpi
-            label="Total recommendations"
-            value={fmtInt(Number(overview.total_recommendations ?? 0))}
-            sub="Rows in recommendations output"
-          />
-          <Kpi
-            label="Unique products"
-            value={fmtInt(Number(overview.total_unique_products ?? 0))}
-            trendPct={kpiTrends.total_unique_products}
-            trendLabel="vs last month"
-          />
-          <Kpi
-            label="Est. revenue opportunity"
-            value={fmtMoney(Number(overview.estimated_revenue_opportunity ?? 0))}
-            sub="Total FINAL_ADJUSTED_AMT across recommendations"
-            trendPct={kpiTrends.estimated_revenue_opportunity}
-            trendLabel="vs prior run"
-          />
-          <Kpi
-            label="Avg monthly spend"
-            value={fmtMoney(Number(overview.average_monthly_spend ?? 0))}
-            sub="Typical monthly spend per location (when available)"
-            trendPct={kpiTrends.average_monthly_spend}
-            trendLabel="vs last month"
-          />
-          <Kpi
-            label="Avg invoice value"
-            value={fmtMoney(Number(overview.average_invoice_value ?? 0))}
-            trendPct={kpiTrends.average_invoice_value}
-            trendLabel="vs last month"
-          />
+        <div
+          id="at-a-glance-kpis"
+          className={`grid transition-[grid-template-rows] duration-300 ease-in-out motion-reduce:transition-none ${
+            atAGlanceExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          }`}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="grid grid-cols-2 gap-4 p-4 sm:p-5 lg:grid-cols-3 xl:grid-cols-5">
+              <Kpi
+                label="Total revenue"
+                value={fmtMoney(Number(overview.total_revenue ?? 0))}
+                trendPct={kpiTrends.total_revenue}
+                trendLabel="vs last month"
+              />
+              <Kpi
+                label="Total transactions"
+                value={fmtInt(Number(overview.total_transactions ?? 0))}
+                trendPct={kpiTrends.total_transactions}
+                trendLabel="vs last month"
+              />
+              <Kpi
+                label="Total stores"
+                value={fmtInt(Number(overview.total_stores ?? overview.total_customers ?? 0))}
+                sub="Unique store locations"
+                trendPct={kpiTrends.total_customers}
+                trendLabel="vs last month"
+              />
+              <Kpi
+                label="Total recommendations"
+                value={fmtInt(Number(overview.total_recommendations ?? 0))}
+                sub="Rows in recommendations output"
+              />
+              <Kpi
+                label="Unique products"
+                value={fmtInt(Number(overview.total_unique_products ?? 0))}
+                trendPct={kpiTrends.total_unique_products}
+                trendLabel="vs last month"
+              />
+              <Kpi
+                label="Est. revenue opportunity"
+                value={fmtMoney(Number(overview.estimated_revenue_opportunity ?? 0))}
+                sub="Total FINAL_ADJUSTED_AMT across recommendations"
+                trendPct={kpiTrends.estimated_revenue_opportunity}
+                trendLabel="vs prior run"
+              />
+              <Kpi
+                label="Avg monthly spend"
+                value={fmtMoney(Number(overview.average_monthly_spend ?? 0))}
+                sub="Typical monthly spend per location (when available)"
+                trendPct={kpiTrends.average_monthly_spend}
+                trendLabel="vs last month"
+              />
+              <Kpi
+                label="Avg invoice value"
+                value={fmtMoney(Number(overview.average_invoice_value ?? 0))}
+                trendPct={kpiTrends.average_invoice_value}
+                trendLabel="vs last month"
+              />
+            </div>
+          </div>
         </div>
       </section>
 
@@ -745,7 +779,7 @@ function Kpi({
   const arrow = positive ? "↑" : "↓";
   const trendText = hasTrend ? `${arrow} ${Math.abs(trendPct ?? 0).toFixed(1)}% ${trendLabel ?? ""}`.trim() : null;
   return (
-    <div className="flex flex-col justify-between rounded-lg border border-slate-700/80 bg-slate-900/30 p-4 text-left">
+    <div className="flex flex-col justify-between rounded-lg border border-slate-700/80 bg-slate-900/30 p-4 text-left transition-all duration-200 ease-out hover:-translate-y-1 hover:border-slate-600/90 hover:bg-slate-900/50 hover:shadow-lg hover:shadow-black/30 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
       <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{label}</p>
       <p className="mt-2 font-mono text-lg font-semibold tabular-nums text-slate-100">{value}</p>
       {trendText ? (
