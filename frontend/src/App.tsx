@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { RequireAuth } from "./components/RequireAuth";
+import { AssistantPage } from "./pages/AssistantPage";
 import { ClusterPage } from "./pages/ClusterPage";
 import { Dashboard } from "./pages/Dashboard";
 import { ForecastPage } from "./pages/ForecastPage";
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="recommendations" element={<StorePage />} />
         <Route path="clusters" element={<ClusterPage />} />
         <Route path="analysis" element={<ForecastPage />} />
+        <Route path="assistant" element={<AssistantPage />} />
         <Route path="store" element={<Navigate to="/recommendations" replace />} />
         <Route path="forecast" element={<Navigate to="/analysis" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 import config as recai_config
 from ai import gemini_service
+from ai.chat_tools import make_chat_tools
 from api.analytics import (
     compute_chat_hints,
     compute_cluster_breakdown,
@@ -36,15 +37,16 @@ def _final_csv_path(eng: Any) -> Any:
     return eng / "outputs" / "recommendations_final.csv"
 
 
-def _chat_context_blob(eng: Any) -> str:
-    parts = {
+def _network_context(eng: Any) -> dict[str, Any]:
+    return {
         "summary": compute_summary(eng),
         "clusters": compute_cluster_breakdown(eng),
         "forecast_context": compute_forecast_context(eng),
         "chat_hints": compute_chat_hints(eng),
         "effective_config": get_effective_config(),
     }
-    return json.dumps(parts, indent=2, default=str)[:28000]
+
+
 
 
 class ChatRequest(BaseModel):
@@ -200,14 +202,28 @@ def post_insight_forecast() -> dict[str, Any]:
 
 
 @router.post("/chat")
-def post_chat(body: ChatRequest) -> dict[str, str]:
+def post_chat(body: ChatRequest) -> dict[str, Any]:
+    """Chat endpoint powered by Gemini function-calling.
+
+    The model gets network aggregates up front and is free to call any of
+    the registered tools (get_store_recommendations, get_sku_placement,
+    get_cluster_profile, top_skus_by_category, list_stores_in_cluster)
+    to pull focused per-entity data as needed.
+    """
     eng = _engine_root()
-    ctx = _chat_context_blob(eng)
+    network_ctx = _network_context(eng)
+    tools = make_chat_tools(eng)
+
     try:
-        reply = gemini_service.chat_reply(body.messages, ctx)
+        reply, tools_called = gemini_service.chat_reply_with_tools(
+            body.messages,
+            network_context=network_ctx,
+            tools=tools,
+        )
     except Exception as e:
         raise _handle_gemini_error(e) from e
-    return {"reply": reply}
+
+    return {"reply": reply, "tools_called": tools_called}
 
 
 @router.post("/explain/recommendation")

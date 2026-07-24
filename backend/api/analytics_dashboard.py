@@ -11,6 +11,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from api.csv_cache import read_csv_cached
+
 
 def _safe_div(a: float, b: float) -> float:
     if b == 0 or (isinstance(b, float) and np.isnan(b)):
@@ -63,7 +65,7 @@ def _read_transactions_df(tx_path: Path) -> pd.DataFrame:
     try:
         hdr = pd.read_csv(tx_path, nrows=0).columns.tolist()
     except Exception:
-        return pd.read_csv(tx_path, low_memory=False)
+        return read_csv_cached(tx_path)
     need = {
         "LINE_AMOUNT",
         "INVOICE_ID",
@@ -79,8 +81,8 @@ def _read_transactions_df(tx_path: Path) -> pd.DataFrame:
         need.add("CATEGORY")
     usecols = [c for c in hdr if c in need]
     if "LINE_AMOUNT" not in usecols or "INVOICE_ID" not in usecols:
-        return pd.read_csv(tx_path, low_memory=False)
-    return pd.read_csv(tx_path, usecols=usecols, low_memory=False)
+        return read_csv_cached(tx_path)
+    return read_csv_cached(tx_path, usecols=usecols)
 
 
 def _read_featured_subset(feat_path: Path) -> pd.DataFrame:
@@ -94,11 +96,11 @@ def _read_featured_subset(feat_path: Path) -> pd.DataFrame:
     try:
         hdr = pd.read_csv(feat_path, nrows=0).columns.tolist()
     except Exception:
-        return pd.read_csv(feat_path, low_memory=False)
+        return read_csv_cached(feat_path)
     usecols = [c for c in want if c in hdr]
     if not usecols:
-        return pd.read_csv(feat_path, low_memory=False)
-    return pd.read_csv(feat_path, usecols=usecols, low_memory=False)
+        return read_csv_cached(feat_path)
+    return read_csv_cached(feat_path, usecols=usecols)
 
 
 def _compute_dashboard_analytics_uncached(engine: Path) -> dict[str, Any]:
@@ -129,7 +131,7 @@ def _compute_dashboard_analytics_uncached(engine: Path) -> dict[str, Any]:
     if not tx_path.is_file():
         return out
 
-    df = _read_transactions_df(tx_path)
+    df = _read_transactions_df(tx_path).copy()
     df["LINE_AMOUNT"] = pd.to_numeric(df["LINE_AMOUNT"], errors="coerce").fillna(0.0)
     if "QTY" in df.columns:
         df["QTY"] = pd.to_numeric(df["QTY"], errors="coerce").fillna(0.0)
@@ -196,7 +198,7 @@ def _compute_dashboard_analytics_uncached(engine: Path) -> dict[str, Any]:
     # Estimated opportunity from recommendation outputs (if available)
     if rec_path.is_file():
         try:
-            rec = pd.read_csv(rec_path, usecols=["FINAL_ADJUSTED_AMT"], low_memory=False)
+            rec = read_csv_cached(rec_path, usecols=["FINAL_ADJUSTED_AMT"])
             rec_amt = pd.to_numeric(rec["FINAL_ADJUSTED_AMT"], errors="coerce").fillna(0.0)
             out["overview"]["estimated_revenue_opportunity"] = float(rec_amt.sum())
             out["overview"]["total_recommendations"] = int(len(rec))
@@ -296,7 +298,7 @@ def _compute_dashboard_analytics_uncached(engine: Path) -> dict[str, Any]:
 
     # Featured engineering aggregates
     if feat_path.is_file():
-        fd = _read_featured_subset(feat_path)
+        fd = _read_featured_subset(feat_path).copy()
         want = [
             "NET_AMT_AVG_MONTHLY",
             "AVG_INVOICE_PURCHASE",

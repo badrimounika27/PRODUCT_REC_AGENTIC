@@ -34,7 +34,9 @@ from api.analytics import (
     compute_summary,
 )
 from api.analytics_dashboard import compute_dashboard_analytics
+from api.csv_cache import cache_stats, read_csv_cached
 from api.forecast_routes import router as forecast_router
+from api.warmup import get_warmup_state, start_warmup
 from contextlib import asynccontextmanager
 
 from db.connection import check_connection, init_schema, list_required_tables
@@ -53,6 +55,11 @@ AGENT_LAST_STATUS: dict[str, dict[str, Any]] = {}
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
     init_schema()
+    try:
+        start_warmup(recai_config.engine_root())
+    except Exception:
+        # Warmup is best-effort: never block server startup on it.
+        pass
     yield
 
 
@@ -292,7 +299,7 @@ def list_stores() -> StoreListResponse:
     path = _final_csv()
     if not path.is_file():
         raise HTTPException(status_code=404, detail="recommendations_final.csv not found.")
-    df = pd.read_csv(path, usecols=["STORE_ID"], low_memory=False)
+    df = read_csv_cached(path, usecols=["STORE_ID"])
     ids = sorted(df["STORE_ID"].astype(str).unique().tolist())
     return StoreListResponse(stores=ids, total=len(ids))
 
@@ -303,11 +310,7 @@ def search_skus(q: str = Query("", description="Filter SKU_CODE or PRODUCT_NAME"
     path = _final_csv()
     if not path.is_file():
         raise HTTPException(status_code=404, detail="recommendations_final.csv not found.")
-    df = pd.read_csv(
-        path,
-        usecols=["SKU_CODE", "PRODUCT_NAME"],
-        low_memory=False,
-    )
+    df = read_csv_cached(path, usecols=["SKU_CODE", "PRODUCT_NAME"])
     df["SKU_CODE"] = df["SKU_CODE"].astype(str)
     df["PRODUCT_NAME"] = df["PRODUCT_NAME"].astype(str)
     uniq = df.drop_duplicates(subset=["SKU_CODE"], keep="first")
@@ -327,7 +330,7 @@ def get_recommendations_by_sku(sku_code: str) -> dict[str, Any]:
     path = _final_csv()
     if not path.is_file():
         raise HTTPException(status_code=404, detail="recommendations_final.csv not found.")
-    df = pd.read_csv(path, low_memory=False)
+    df = read_csv_cached(path)
     df["SKU_CODE"] = df["SKU_CODE"].astype(str)
     sub = df.loc[df["SKU_CODE"] == str(sku_code).strip()]
     if sub.empty:
@@ -367,7 +370,7 @@ def get_recommendations(
     path = _final_csv()
     if not path.is_file():
         raise HTTPException(status_code=404, detail="recommendations_final.csv not found.")
-    df = pd.read_csv(path, low_memory=False)
+    df = read_csv_cached(path)
     df["STORE_ID"] = df["STORE_ID"].astype(str)
     sub = df.loc[df["STORE_ID"] == str(store_id)]
     if sub.empty:
@@ -401,7 +404,7 @@ def get_recommendation_summary(
     path = _final_csv()
     if not path.is_file():
         raise HTTPException(status_code=404, detail="recommendations_final.csv not found.")
-    df = pd.read_csv(path, low_memory=False)
+    df = read_csv_cached(path)
     df["STORE_ID"] = df["STORE_ID"].astype(str)
     sub = df.loc[df["STORE_ID"] == str(store_id)]
     if sub.empty:
@@ -428,7 +431,7 @@ def list_clusters() -> list[ClusterSummary]:
     cpath = eng / "outputs" / "clustered_data.csv"
     if not cpath.is_file():
         raise HTTPException(status_code=404, detail="clustered_data.csv not found.")
-    cl = pd.read_csv(cpath, low_memory=False)
+    cl = read_csv_cached(cpath)
     counts = cl.groupby("CLUSTER_ID", observed=False)["STORE_ID"].nunique()
     out: list[ClusterSummary] = []
     for cid, cnt in counts.items():
@@ -445,13 +448,13 @@ def get_cluster(cluster_id: int) -> ClusterDetailResponse:
         raise HTTPException(status_code=404, detail="clustered_data.csv not found.")
     if not fpath.is_file():
         raise HTTPException(status_code=404, detail="recommendations_final.csv not found.")
-    cl = pd.read_csv(cpath, low_memory=False)
+    cl = read_csv_cached(cpath)
     cl["STORE_ID"] = cl["STORE_ID"].astype(str)
     part = cl.loc[cl["CLUSTER_ID"] == int(cluster_id)]
     if part.empty:
         raise HTTPException(status_code=404, detail="Cluster not found.")
     stores = sorted(part["STORE_ID"].unique().tolist())
-    fin = pd.read_csv(fpath, low_memory=False)
+    fin = read_csv_cached(fpath)
     fin = fin.loc[fin["CLUSTER_ID"] == int(cluster_id)]
     top = (
         fin.groupby(["SKU_CODE", "PRODUCT_NAME"], observed=False)
@@ -514,6 +517,18 @@ def health_db() -> dict[str, Any]:
     status["missing_tables"] = sorted(required - present)
     status["schema_complete"] = not status.get("missing_tables")
     return status
+
+
+@app.get("/api/health/warmup")
+def health_warmup() -> dict[str, Any]:
+    """Progress of the background cache warmup that runs on startup."""
+    return get_warmup_state()
+
+
+@app.get("/api/health/cache")
+def health_cache() -> dict[str, Any]:
+    """CSV cache footprint (paths + rows per cached signature)."""
+    return cache_stats()
 
 
 @app.get("/api/health/ai")
@@ -583,8 +598,17 @@ if _ui_dist.is_dir() and (_ui_dist / "index.html").is_file():
             name="ui_assets",
         )
 
+    # index.html must NEVER be cached — it references hashed JS/CSS bundle names
+    # that change every build. If the browser caches it, users load an old bundle
+    # after we ship a new frontend.
+    _NO_CACHE_HEADERS = {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
+
     def _spa_index() -> FileResponse:
-        return FileResponse(_ui_dist / "index.html")
+        return FileResponse(_ui_dist / "index.html", headers=_NO_CACHE_HEADERS)
 
     @app.get("/")
     async def spa_root() -> FileResponse:
@@ -599,5 +623,12 @@ if _ui_dist.is_dir() and (_ui_dist / "index.html").is_file():
         except ValueError:
             raise HTTPException(status_code=404)
         if candidate.is_file():
+            # Bundle files (.js / .css with content-hash) are safe to cache long-term.
+            # Any other bare file (e.g. favicon) gets a shorter cache.
+            if candidate.suffix in (".js", ".css", ".woff", ".woff2"):
+                return FileResponse(
+                    candidate,
+                    headers={"Cache-Control": "public, max-age=31536000, immutable"},
+                )
             return FileResponse(candidate)
         return _spa_index()

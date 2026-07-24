@@ -9,6 +9,7 @@ from typing import Any
 
 import pandas as pd
 
+from api.csv_cache import read_csv_cached
 from config import get_effective_config
 
 
@@ -45,7 +46,7 @@ def compute_summary(engine: Path) -> dict[str, Any]:
     if not p.is_file():
         return empty
 
-    df = pd.read_csv(p, low_memory=False)
+    df = read_csv_cached(p)
     empty["pipeline_last_run"] = _mtime_iso(p)
     if df.empty:
         return empty
@@ -112,8 +113,8 @@ def compute_cluster_breakdown(engine: Path) -> dict[str, Any]:
     if not clp.is_file() or not fp.is_file():
         return {"clusters": []}
 
-    cl = pd.read_csv(clp, low_memory=False)
-    df = pd.read_csv(fp, low_memory=False)
+    cl = read_csv_cached(clp)
+    df = read_csv_cached(fp)
     counts = cl.groupby("CLUSTER_ID", observed=False)["STORE_ID"].nunique()
     top_cat: dict[int, str] = {}
     t = (
@@ -154,7 +155,7 @@ def compute_cluster_profile(engine: Path) -> dict[str, Any]:
     if not clp.is_file():
         return {"available": False, "columns": [], "rows": []}
 
-    df = pd.read_csv(clp, low_memory=False)
+    df = read_csv_cached(clp).copy()
     if "CLUSTER_ID" not in df.columns or "STORE_ID" not in df.columns:
         return {"available": False, "columns": [], "rows": []}
 
@@ -279,7 +280,7 @@ def compute_forecast_context(engine: Path) -> dict[str, Any]:
     p = _final_path(engine)
     if not p.is_file():
         return {}
-    df = pd.read_csv(p, low_memory=False)
+    df = read_csv_cached(p)
     cfg = get_effective_config()
     src = df["SOURCE"].astype(str).str.strip().str.upper()
     amt = df["FINAL_ADJUSTED_AMT"].astype(float) if "FINAL_ADJUSTED_AMT" in df.columns else 0
@@ -291,7 +292,7 @@ def compute_forecast_context(engine: Path) -> dict[str, Any]:
             tx_hdr = pd.read_csv(tx_path, nrows=0).columns.tolist()
             need = {"YEAR_MONTH", "LINE_AMOUNT"}
             if need.issubset(set(tx_hdr)):
-                tx = pd.read_csv(tx_path, usecols=list(need), low_memory=False)
+                tx = read_csv_cached(tx_path, usecols=list(need)).copy()
                 tx["YEAR_MONTH"] = tx["YEAR_MONTH"].astype(str)
                 tx["LINE_AMOUNT"] = pd.to_numeric(tx["LINE_AMOUNT"], errors="coerce").fillna(0.0)
                 monthly = tx.groupby("YEAR_MONTH", observed=False)["LINE_AMOUNT"].sum().sort_index()
@@ -354,7 +355,7 @@ def compute_chat_hints(engine: Path) -> dict[str, Any]:
     if not p.is_file():
         return out
 
-    df = pd.read_csv(p, low_memory=False)
+    df = read_csv_cached(p)
     out["has_recommendations_file"] = True
     out["summary_one_liner"] = {
         "total_stores": int(df["STORE_ID"].nunique()) if "STORE_ID" in df.columns else 0,
@@ -411,7 +412,7 @@ def compute_store_spend_history(engine: Path, store_id: str) -> dict[str, Any]:
     need = {"STORE_ID", "YEAR_MONTH", "LINE_AMOUNT"}
     if not need.issubset(set(hdr)):
         return {"available": False, "store_id": str(store_id), "series": []}
-    df = pd.read_csv(tx_path, usecols=list(need), low_memory=False)
+    df = read_csv_cached(tx_path, usecols=list(need)).copy()
     df["LINE_AMOUNT"] = pd.to_numeric(df["LINE_AMOUNT"], errors="coerce").fillna(0.0)
     df["STORE_ID"] = df["STORE_ID"].astype(str)
     df["YEAR_MONTH"] = df["YEAR_MONTH"].astype(str)

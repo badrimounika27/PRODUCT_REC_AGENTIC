@@ -44,7 +44,6 @@ function formatSpendPeriod(ym: string): string {
 export function StorePage() {
   const [searchParams] = useSearchParams();
   const [stores, setStores] = useState<string[]>([]);
-  const [q, setQ] = useState("");
   const [storeId, setStoreId] = useState("");
   const [clusterId, setClusterId] = useState<number>(0);
   const [recs, setRecs] = useState<Record<string, unknown>[]>([]);
@@ -112,8 +111,9 @@ export function StorePage() {
   }, [recs]);
 
   const filtered = useMemo(
-    () => stores.filter((s) => s.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 50),
-    [stores, q],
+    () =>
+      stores.filter((s) => s.toLowerCase().includes(storeId.trim().toLowerCase())).slice(0, 50),
+    [stores, storeId],
   );
 
   const topCat = useMemo(() => {
@@ -305,33 +305,27 @@ export function StorePage() {
           <Search className="h-5 w-5 text-accent" />
           <h2 className="font-display text-lg font-semibold">Store search</h2>
         </div>
-        <p className="mt-1 text-xs text-slate-500">Pick from the list or type a store ID and load.</p>
-        <label className="mt-4 block text-xs font-semibold uppercase text-slate-500">Filter</label>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Filter store IDs…"
-          className="mt-2 w-full rounded-xl border border-surface-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
-        />
-        <div className="mt-3 max-h-40 overflow-y-auto rounded-xl border border-surface-border">
-          {filtered.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => loadStore(s)}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-surface-raised"
-            >
-              <Store className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-              {s}
-            </button>
-          ))}
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <p className="mt-1 text-xs text-slate-500">
+          Type or pick a store ID and press Load. The list below narrows as you type.
+        </p>
+        <label
+          htmlFor="store-id-input"
+          className="mt-4 block text-xs font-semibold uppercase text-slate-500"
+        >
+          Store ID
+        </label>
+        <div className="mt-2 flex flex-wrap gap-2">
           <input
+            id="store-id-input"
             value={storeId}
             onChange={(e) => setStoreId(e.target.value)}
-            placeholder="Store ID"
-            className="min-w-[200px] flex-1 rounded-xl border border-surface-border bg-surface px-3 py-2 text-sm"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && storeId.trim() && !loading) {
+                loadStore(storeId.trim());
+              }
+            }}
+            placeholder="e.g. S01001"
+            className="min-w-[200px] flex-1 rounded-xl border border-surface-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
           />
           <button
             type="button"
@@ -341,6 +335,23 @@ export function StorePage() {
           >
             {loading ? "Loading…" : "Load store"}
           </button>
+        </div>
+        <div className="mt-3 max-h-40 overflow-y-auto rounded-xl border border-surface-border">
+          {filtered.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-slate-500">No matching store IDs.</p>
+          ) : (
+            filtered.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => loadStore(s)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-surface-raised"
+              >
+                <Store className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                {s}
+              </button>
+            ))
+          )}
         </div>
       </section>
 

@@ -19,6 +19,7 @@ import {
   YAxis,
 } from "recharts";
 import { fetchDashboardAnalytics, fetchSeasonalityByCategory, fetchSeasonalityL2Categories } from "../api";
+import { Kpi } from "../components/Kpi";
 import { FeatureInsightsBoxPlot } from "../components/analytics/FeatureInsightsBoxPlot";
 import { ResizableChartCard } from "../components/analytics/ResizableChartCard";
 import { SplitPane } from "../components/analytics/SplitPane";
@@ -779,35 +780,6 @@ function PieSliceLabel({
     >
       {`${truncate(String(name ?? ""), 14)} ${(p * 100).toFixed(0)}%`}
     </text>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  sub,
-  trendPct,
-  trendLabel,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  trendPct?: number | null;
-  trendLabel?: string;
-}) {
-  const hasTrend = trendPct != null && Number.isFinite(trendPct);
-  const positive = (trendPct ?? 0) >= 0;
-  const arrow = positive ? "↑" : "↓";
-  const trendText = hasTrend ? `${arrow} ${Math.abs(trendPct ?? 0).toFixed(1)}% ${trendLabel ?? ""}`.trim() : null;
-  return (
-    <div className="flex min-w-0 flex-col justify-between rounded-lg border border-surface-border bg-surface-raised/60 px-2.5 py-2 text-left transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-slate-500/70 hover:bg-surface-raised hover:shadow-md hover:shadow-black/20 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
-      <p className="truncate text-[10px] font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 truncate font-mono text-base font-semibold tabular-nums text-slate-100" title={value}>{value}</p>
-      {trendText ? (
-        <p className={`mt-0.5 truncate text-[10px] font-medium ${positive ? "text-emerald-500 dark:text-emerald-400" : "text-rose-500 dark:text-rose-400"}`}>{trendText}</p>
-      ) : null}
-      {sub ? <p className="mt-0.5 line-clamp-2 text-[10px] leading-tight text-slate-500">{sub}</p> : null}
-    </div>
   );
 }
 

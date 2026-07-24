@@ -2,11 +2,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 
 /**
- * Client-side auth store using localStorage.
- * NOTE: This is a demo/prototype implementation — for production, replace
- * with a real backend endpoint. Passwords are hashed via SubtleCrypto so they
- * aren't stored in plaintext, but this still doesn't protect against a
- * compromised client.
+ * Client-side auth store (prototype).
+ *
+ * User accounts (username + SHA-256 password hash) are persisted in
+ * localStorage so a signed-up account survives across page loads. The
+ * *session* is intentionally NOT persisted — every full page load / browser
+ * refresh / server restart re-lands on the login screen. Users only stay
+ * signed in for the lifetime of the current in-memory JS runtime.
  */
 
 interface StoredUser {
@@ -29,7 +31,7 @@ interface AuthContextValue {
 }
 
 const USERS_KEY = "intellirecommend.users";
-const SESSION_KEY = "intellirecommend.session";
+const LEGACY_SESSION_KEY = "intellirecommend.session";
 
 async function hashPassword(password: string): Promise<string> {
   const enc = new TextEncoder().encode(password);
@@ -54,32 +56,17 @@ function saveUsers(users: StoredUser[]) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
-function loadSession(): AuthUser | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed.username === "string") return { username: parsed.username };
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function saveSession(user: AuthUser | null) {
-  if (user) localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-  else localStorage.removeItem(SESSION_KEY);
-}
-
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setUser(loadSession());
-    setLoading(false);
+    try {
+      localStorage.removeItem(LEGACY_SESSION_KEY);
+    } catch {
+      /* noop */
+    }
   }, []);
 
   const signup = useCallback(async (username: string, password: string) => {
@@ -96,9 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     users.push({ username: uname, passwordHash, createdAt: Date.now() });
     saveUsers(users);
 
-    const session: AuthUser = { username: uname };
-    saveSession(session);
-    setUser(session);
+    setUser({ username: uname });
     return { ok: true as const };
   }, []);
 
@@ -112,20 +97,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const passwordHash = await hashPassword(password);
     if (passwordHash !== match.passwordHash) return { ok: false as const, error: "Incorrect password." };
 
-    const session: AuthUser = { username: match.username };
-    saveSession(session);
-    setUser(session);
+    setUser({ username: match.username });
     return { ok: true as const };
   }, []);
 
   const logout = useCallback(() => {
-    saveSession(null);
     setUser(null);
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isAuthenticated: !!user, loading, login, signup, logout }),
-    [user, loading, login, signup, logout],
+    () => ({ user, isAuthenticated: !!user, loading: false, login, signup, logout }),
+    [user, login, signup, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

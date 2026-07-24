@@ -2,7 +2,22 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Expand, Minimize2, Search, X } from "lucide-react";
+import {
+  BarChart3,
+  Boxes,
+  ChevronDown,
+  ChevronUp,
+  Expand,
+  Layers,
+  Minimize2,
+  Search,
+  Store,
+  Tag,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+  X,
+} from "lucide-react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import {
   Bar,
@@ -25,6 +40,7 @@ import {
 } from "../api";
 import { ClusterExplanationCard } from "../components/ClusterExplanationCard";
 import { ClusterProfileHeatmap } from "../components/ClusterProfileHeatmap";
+import { Kpi } from "../components/Kpi";
 import { StrategyTable, type StrategyRow } from "../components/StrategyTable";
 import { chartTooltipProps } from "../components/analytics/chartTheme";
 import { clusterStrategyRows } from "../lib/decisionIntel";
@@ -61,6 +77,7 @@ export function ClusterPage() {
   const [storePage, setStorePage] = useState(0);
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
   const [storesChartExpanded, setStoresChartExpanded] = useState(false);
+  const [atAGlanceExpanded, setAtAGlanceExpanded] = useState(true);
 
   const detailsRef = useRef<HTMLDivElement>(null);
   const skipScrollRef = useRef(true);
@@ -266,6 +283,121 @@ export function ClusterPage() {
     setSelected(cid);
   };
 
+  const clusterKpis = useMemo(() => {
+    const totalClusters = rows.length;
+    const storeCounts = rows.map((r) => r.store_count);
+    const totalStores = storeCounts.reduce((a, b) => a + b, 0);
+    const avg = totalClusters ? totalStores / totalClusters : 0;
+
+    const largest = totalClusters
+      ? rows.reduce((a, b) => (a.store_count >= b.store_count ? a : b))
+      : null;
+    const smallest = totalClusters
+      ? rows.reduce((a, b) => (a.store_count <= b.store_count ? a : b))
+      : null;
+
+    const categoryCounts = new Map<string, number>();
+    for (const r of rows) {
+      const c = (r.top_category ?? "").trim();
+      if (!c || c === "-" || c === "—") continue;
+      categoryCounts.set(c, (categoryCounts.get(c) ?? 0) + 1);
+    }
+    let topCategory = "—";
+    let topCategoryCount = 0;
+    for (const [k, v] of categoryCounts) {
+      if (v > topCategoryCount) {
+        topCategory = k;
+        topCategoryCount = v;
+      }
+    }
+
+    let bestSpend: { clusterId: number; value: number } | null = null;
+    for (const p of profileRows) {
+      const raw = p.values?.["NET_AMT_AVG_MONTHLY"];
+      if (raw == null) continue;
+      const v = Number(raw);
+      if (!Number.isFinite(v)) continue;
+      if (!bestSpend || v > bestSpend.value) {
+        bestSpend = { clusterId: p.cluster_id, value: v };
+      }
+    }
+
+    const totalTopProducts = new Set(Object.values(topProductsByCluster).flat()).size;
+
+    const fmtInt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    const fmtAvg = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 1 });
+    const fmtSpend = (n: number) => {
+      const a = Math.abs(n);
+      if (a >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
+      if (a >= 1e3) return `${(n / 1e3).toFixed(2)}k`;
+      return n.toFixed(2);
+    };
+
+    return [
+      {
+        label: "Total clusters",
+        value: fmtInt(totalClusters),
+        sub: "Segments produced by the pipeline",
+        tone: "indigo" as const,
+        icon: Layers,
+      },
+      {
+        label: "Total stores",
+        value: fmtInt(totalStores),
+        sub: "Across all clusters",
+        tone: "cyan" as const,
+        icon: Store,
+      },
+      {
+        label: "Largest cluster",
+        value: largest ? `C${largest.cluster_id} · ${fmtInt(largest.store_count)}` : "—",
+        sub: largest?.top_category ? `Top: ${largest.top_category}` : undefined,
+        tone: "emerald" as const,
+        icon: TrendingUp,
+      },
+      {
+        label: "Smallest cluster",
+        value: smallest ? `C${smallest.cluster_id} · ${fmtInt(smallest.store_count)}` : "—",
+        sub: smallest?.top_category ? `Top: ${smallest.top_category}` : undefined,
+        tone: "rose" as const,
+        icon: TrendingDown,
+      },
+      {
+        label: "Avg stores / cluster",
+        value: totalClusters ? fmtAvg(avg) : "—",
+        sub: "Balance across segments",
+        tone: "violet" as const,
+        icon: BarChart3,
+      },
+      {
+        label: "Most popular category",
+        value: topCategory,
+        sub:
+          topCategoryCount > 0
+            ? `${topCategoryCount} of ${totalClusters} clusters focus here`
+            : "Top-recommendation focus",
+        tone: "amber" as const,
+        icon: Tag,
+      },
+      {
+        label: "Highest avg spend",
+        value: bestSpend ? `C${bestSpend.clusterId} · ${fmtSpend(bestSpend.value)}` : "—",
+        sub: "NET_AMT_AVG_MONTHLY (per store)",
+        tone: "fuchsia" as const,
+        icon: Wallet,
+      },
+      {
+        label: "Top products indexed",
+        value: fmtInt(totalTopProducts),
+        sub: "Distinct SKUs across cluster top-3 lists",
+        tone: "sky" as const,
+        icon: Boxes,
+      },
+    ];
+  }, [rows, profileRows, topProductsByCluster]);
+
+  const kpiLgCols = Math.max(2, Math.ceil(clusterKpis.length / 2));
+
   return (
     <div className="space-y-8">
       <motion.div {...fadeUp} transition={{ duration: 0.4 }}>
@@ -274,6 +406,56 @@ export function ClusterPage() {
           Segment profiles, store counts, playbooks and AI summaries.
         </p>
       </motion.div>
+
+      {rows.length ? (
+        <motion.section
+          {...fadeUp}
+          transition={{ duration: 0.4, delay: 0.05 }}
+          className="overflow-hidden rounded-xl border border-surface-border bg-surface-card/60 shadow-sm"
+          aria-label="Cluster at a glance"
+        >
+          <div
+            className={`flex flex-wrap items-center justify-between gap-3 px-3 py-2 sm:px-4 ${
+              atAGlanceExpanded ? "border-b border-surface-border" : ""
+            }`}
+          >
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+              At a glance
+            </h2>
+            <button
+              type="button"
+              onClick={() => setAtAGlanceExpanded((open) => !open)}
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-surface-border bg-surface-raised text-slate-400 transition-colors hover:bg-surface-card hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/60"
+              aria-expanded={atAGlanceExpanded}
+              aria-controls="cluster-at-a-glance-kpis"
+              aria-label={atAGlanceExpanded ? "Collapse at a glance" : "Expand at a glance"}
+            >
+              {atAGlanceExpanded ? (
+                <ChevronUp className="h-4 w-4" aria-hidden />
+              ) : (
+                <ChevronDown className="h-4 w-4" aria-hidden />
+              )}
+            </button>
+          </div>
+          <div
+            id="cluster-at-a-glance-kpis"
+            className={`grid transition-[grid-template-rows] duration-300 ease-in-out motion-reduce:transition-none ${
+              atAGlanceExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+            }`}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <div
+                className="kpi-grid grid grid-cols-2 gap-2 p-2.5 sm:grid-cols-3 sm:p-3 md:grid-cols-4"
+                style={{ ["--kpi-lg-cols" as string]: kpiLgCols } as React.CSSProperties}
+              >
+                {clusterKpis.map((k) => (
+                  <Kpi key={k.label} {...k} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </motion.section>
+      ) : null}
 
       {listErr ? (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 text-sm text-amber-200">

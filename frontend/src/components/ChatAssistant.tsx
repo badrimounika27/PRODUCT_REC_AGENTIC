@@ -12,8 +12,30 @@ const SUGGESTIONS = [
   "Where are the biggest upsell opportunities?",
 ];
 
-export function ChatAssistant() {
-  const [open, setOpen] = useState(false);
+interface ChatAssistantProps {
+  /** Controlled open state. When provided, hides the built-in floating trigger. */
+  open?: boolean;
+  /** Called when the panel wants to change open state (close button, etc.). */
+  onOpenChange?: (next: boolean) => void;
+  /** Hide the floating trigger button. Defaults to false when uncontrolled. */
+  hideTrigger?: boolean;
+}
+
+export function ChatAssistant({ open, onOpenChange, hideTrigger }: ChatAssistantProps = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = open !== undefined;
+  const isOpen = isControlled ? !!open : internalOpen;
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (isControlled) {
+        onOpenChange?.(next);
+      } else {
+        setInternalOpen(next);
+      }
+    },
+    [isControlled, onOpenChange],
+  );
+
   const [input, setInput] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([
     {
@@ -27,7 +49,7 @@ export function ChatAssistant() {
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [msgs, open]);
+  }, [msgs, isOpen]);
 
   const send = useCallback(
     async (text: string) => {
@@ -56,18 +78,22 @@ export function ChatAssistant() {
     [loading, msgs],
   );
 
+  const showTrigger = !hideTrigger && !isControlled;
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-lg shadow-accent/30 transition hover:scale-105 hover:bg-accent-dim"
-        aria-label="Open assistant"
-      >
-        <MessageCircle className="h-6 w-6" />
-      </button>
+      {showTrigger ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-lg shadow-accent/30 transition hover:scale-105 hover:bg-accent-dim"
+          aria-label="Open assistant"
+        >
+          <MessageCircle className="h-6 w-6" />
+        </button>
+      ) : null}
 
-      {open ? (
+      {isOpen ? (
         <div className="fixed bottom-6 right-6 z-50 flex h-[min(560px,calc(100vh-3rem))] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-surface-border bg-surface-card shadow-2xl">
           <div className="flex items-center justify-between border-b border-surface-border px-4 py-3">
             <span className="font-display font-semibold">AI Assistant</span>

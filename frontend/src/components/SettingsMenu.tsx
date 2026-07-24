@@ -1,11 +1,17 @@
-import { Check, LogOut, Moon, Settings as SettingsIcon, Sun } from "lucide-react";
+import { Check, ChevronUp, LogOut, Moon, Settings as SettingsIcon, Sun } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import type { Theme } from "../contexts/ThemeContext";
 
-export function SettingsMenu() {
+type Variant = "header" | "sidebar";
+
+interface SettingsMenuProps {
+  variant?: Variant;
+}
+
+export function SettingsMenu({ variant = "header" }: SettingsMenuProps) {
   const { theme, setTheme } = useTheme();
   const { logout, user } = useAuth();
   const navigate = useNavigate();
@@ -39,25 +45,57 @@ export function SettingsMenu() {
     setTheme(t);
   }
 
+  const initial = user?.username?.[0]?.toUpperCase() ?? "?";
+  const isSidebar = variant === "sidebar";
+
   return (
     <div ref={wrapRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label="Settings"
-        className={`flex h-9 w-9 items-center justify-center rounded-xl border border-surface-border bg-surface-raised text-slate-400 transition hover:text-slate-100 hover:bg-surface-card ${
-          open ? "text-slate-100 bg-surface-card" : ""
-        }`}
-      >
-        <SettingsIcon className="h-4 w-4" />
-      </button>
+      {isSidebar ? (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition hover:bg-surface-raised ${
+            open ? "bg-surface-raised" : ""
+          }`}
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-accent text-xs font-semibold text-white">
+            {initial}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-slate-100">
+              {user?.username ?? "Settings"}
+            </p>
+            <p className="truncate text-[10px] text-slate-500">Settings · Theme · Logout</p>
+          </div>
+          <ChevronUp
+            className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${
+              open ? "" : "rotate-180"
+            }`}
+          />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label="Settings"
+          className={`flex h-9 w-9 items-center justify-center rounded-xl border border-surface-border bg-surface-raised text-slate-400 transition hover:text-slate-100 hover:bg-surface-card ${
+            open ? "text-slate-100 bg-surface-card" : ""
+          }`}
+        >
+          <SettingsIcon className="h-4 w-4" />
+        </button>
+      )}
 
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 top-11 z-40 w-60 overflow-hidden rounded-xl border border-surface-border bg-surface-card shadow-xl shadow-black/20"
+          className={`absolute z-40 w-60 overflow-hidden rounded-xl border border-surface-border bg-surface-card shadow-xl shadow-black/30 ${
+            isSidebar ? "bottom-full left-0 mb-2" : "right-0 top-11"
+          }`}
         >
           {user ? (
             <div className="border-b border-surface-border px-3 py-2">
@@ -67,10 +105,22 @@ export function SettingsMenu() {
           ) : null}
 
           <div className="px-3 pb-2 pt-3">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-500">Theme</p>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+              Theme
+            </p>
             <div className="flex gap-1 rounded-lg bg-surface-raised p-1">
-              <ThemeButton active={theme === "light"} onClick={() => handleTheme("light")} icon={<Sun className="h-3.5 w-3.5" />} label="Light" />
-              <ThemeButton active={theme === "dark"} onClick={() => handleTheme("dark")} icon={<Moon className="h-3.5 w-3.5" />} label="Dark" />
+              <ThemeButton
+                active={theme === "light"}
+                onClick={() => handleTheme("light")}
+                icon={<Sun className="h-3.5 w-3.5" />}
+                label="Light"
+              />
+              <ThemeButton
+                active={theme === "dark"}
+                onClick={() => handleTheme("dark")}
+                icon={<Moon className="h-3.5 w-3.5" />}
+                label="Dark"
+              />
             </div>
           </div>
 
