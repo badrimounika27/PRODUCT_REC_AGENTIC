@@ -275,6 +275,120 @@ def compute_cluster_profile(engine: Path) -> dict[str, Any]:
     return {"available": True, "columns": columns_out, "rows": rows_out}
 
 
+def compute_cluster_store_features(engine: Path, cluster_id: int) -> dict[str, Any]:
+    """
+    Per-store feature rows for one CLUSTER_ID from clustered_data.csv.
+    Adds PURCHASE_FREQ_PER_DAY = 1 / AVG_NO_DAYS_BETWEEN_PURCHASE when days > 0.
+    """
+    clp = engine / "outputs" / "clustered_data.csv"
+    if not clp.is_file():
+        return {"available": False, "columns": [], "rows": []}
+
+    df = read_csv_cached(clp).copy()
+    if "CLUSTER_ID" not in df.columns or "STORE_ID" not in df.columns:
+        return {"available": False, "columns": [], "rows": []}
+
+    part = df.loc[df["CLUSTER_ID"] == int(cluster_id)].copy()
+    if part.empty:
+        return {"available": True, "columns": [], "rows": []}
+
+    part["STORE_ID"] = part["STORE_ID"].astype(str)
+    part["CLUSTER_ID"] = part["CLUSTER_ID"].astype(int)
+
+    skip = {"NEW_CUSTOMER"}
+    metric_cols: list[str] = []
+    for c in part.columns:
+        if c in ("STORE_ID", "CLUSTER_ID") or c in skip:
+            continue
+        s = pd.to_numeric(part[c], errors="coerce")
+        if s.notna().sum() == 0:
+            continue
+        part[c] = s
+        metric_cols.append(c)
+
+    days_col = "AVG_NO_DAYS_BETWEEN_PURCHASE"
+    if days_col in part.columns:
+        days = pd.to_numeric(part[days_col], errors="coerce")
+        freq = days.where(days > 0).rdiv(1.0)
+        part["PURCHASE_FREQ_PER_DAY"] = freq
+        if "PURCHASE_FREQ_PER_DAY" not in metric_cols:
+            metric_cols.append("PURCHASE_FREQ_PER_DAY")
+
+    LABELS: dict[str, str] = {
+        "STORE_ID": "Store ID",
+        "CLUSTER_ID": "Cluster ID",
+        "NET_AMT_AVG_MONTHLY": "Avg Monthly Net Spend",
+        "AVG_INVOICE_PURCHASE": "Avg Invoice Amount",
+        "UNIQUE_PRD_COUNT": "Unique Products (Avg)",
+        "INV_COUNT_AVG_MONTHLY": "Avg Invoices per Month",
+        "UNIQUE_PRD_COUNT_PER_INV": "Products per Invoice (Avg)",
+        "AVG_NO_DAYS_BETWEEN_PURCHASE": "Avg Days Between Purchases",
+        "PURCHASE_FREQ_PER_DAY": "Purchase Frequency",
+        "Kids_SALES_PCT": "Kids Share",
+        "Men_SALES_PCT": "Men Share",
+        "Women_SALES_PCT": "Women Share",
+        "Entry_PCT": "Entry %",
+        "Mid_PCT": "Mid %",
+        "Premium_PCT": "Premium %",
+        "Luxury_PCT": "Luxury %",
+    }
+
+    preferred = [
+        "NET_AMT_AVG_MONTHLY",
+        "AVG_INVOICE_PURCHASE",
+        "UNIQUE_PRD_COUNT",
+        "INV_COUNT_AVG_MONTHLY",
+        "UNIQUE_PRD_COUNT_PER_INV",
+        "AVG_NO_DAYS_BETWEEN_PURCHASE",
+        "PURCHASE_FREQ_PER_DAY",
+        "Kids_SALES_PCT",
+        "Men_SALES_PCT",
+        "Women_SALES_PCT",
+        "Entry_PCT",
+        "Mid_PCT",
+        "Premium_PCT",
+        "Luxury_PCT",
+    ]
+    ordered_metrics: list[str] = [c for c in preferred if c in metric_cols]
+    seen = set(ordered_metrics)
+    for c in sorted(metric_cols):
+        if c not in seen:
+            ordered_metrics.append(c)
+
+    def label_for(col: str) -> str:
+        if col in LABELS:
+            return LABELS[col]
+        return _humanize_col(col)
+
+    columns_out = [
+        {"id": "STORE_ID", "label": "Store ID"},
+        {"id": "CLUSTER_ID", "label": "Cluster ID"},
+        *[{"id": c, "label": label_for(c)} for c in ordered_metrics],
+    ]
+
+    rows_out: list[dict[str, Any]] = []
+    # One row per store (dedupe if CSV ever has duplicates)
+    part = part.drop_duplicates(subset=["STORE_ID"], keep="first")
+    part = part.sort_values("STORE_ID")
+    for _, r in part.iterrows():
+        row: dict[str, Any] = {
+            "STORE_ID": str(r["STORE_ID"]),
+            "CLUSTER_ID": int(r["CLUSTER_ID"]),
+        }
+        for c in ordered_metrics:
+            v = r.get(c)
+            if v is None or (isinstance(v, float) and pd.isna(v)):
+                row[c] = None
+            else:
+                try:
+                    row[c] = float(v)
+                except (TypeError, ValueError):
+                    row[c] = None
+        rows_out.append(row)
+
+    return {"available": True, "columns": columns_out, "rows": rows_out}
+
+
 def compute_forecast_context(engine: Path) -> dict[str, Any]:
     """Aggregates for forecast / risk AI panel."""
     p = _final_path(engine)

@@ -67,6 +67,16 @@ export function ClusterExplanationCard({
         </div>
       </div>
 
+      {loading ? (
+        <div className="mt-6 h-24 animate-pulse rounded-2xl bg-surface-raised/60" />
+      ) : error ? (
+        <p className="mt-6 text-sm text-red-300">{error}</p>
+      ) : insight ? (
+        <p className="mt-6 text-sm leading-relaxed text-slate-200">{insight.insight}</p>
+      ) : (
+        <p className="mt-6 text-sm text-slate-500">Select a cluster to generate an explanation.</p>
+      )}
+
       {profileMetrics?.length ? (
         <div className="mt-6">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Feature snapshot</p>
@@ -124,27 +134,16 @@ export function ClusterExplanationCard({
         </div>
       )}
 
-      {loading ? (
-        <div className="mt-6 h-24 animate-pulse rounded-2xl bg-surface-raised/60" />
-      ) : error ? (
-        <p className="mt-6 text-sm text-red-300">{error}</p>
-      ) : insight ? (
-        <div className="mt-6 space-y-3 text-sm text-slate-300">
-          <p className="leading-relaxed text-slate-200">{insight.insight}</p>
-          {engagementIdeas?.length ? (
-            <div className="rounded-2xl border border-surface-border/60 bg-surface-raised/40 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Engagement ideas</p>
-              <ul className="mt-2 list-disc space-y-1.5 pl-4 text-slate-300">
-                {engagementIdeas.map((a, i) => (
-                  <li key={i}>{a}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+      {!loading && !error && engagementIdeas?.length ? (
+        <div className="mt-6 rounded-2xl border border-surface-border/60 bg-surface-raised/40 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Engagement ideas</p>
+          <ul className="mt-2 list-disc space-y-1.5 pl-4 text-sm text-slate-300">
+            {engagementIdeas.map((a, i) => (
+              <li key={i}>{a}</li>
+            ))}
+          </ul>
         </div>
-      ) : (
-        <p className="mt-6 text-sm text-slate-500">Select a cluster to generate an explanation.</p>
-      )}
+      ) : null}
     </motion.div>
   );
 }

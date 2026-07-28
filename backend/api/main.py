@@ -29,6 +29,7 @@ from api.ai_routes import router as ai_router
 from api.analytics import (
     compute_cluster_breakdown,
     compute_cluster_profile,
+    compute_cluster_store_features,
     compute_forecast_context,
     compute_store_spend_history,
     compute_summary,
@@ -166,6 +167,8 @@ class ClusterDetailResponse(BaseModel):
     store_count: int
     stores: list[str]
     top_recommended_skus: list[dict[str, Any]]
+    store_columns: list[dict[str, str]] = []
+    store_rows: list[dict[str, Any]] = []
 
 
 class AgentInfo(BaseModel):
@@ -464,11 +467,14 @@ def get_cluster(cluster_id: int) -> ClusterDetailResponse:
         .head(15)
         .to_dict(orient="records")
     )
+    features = compute_cluster_store_features(eng, int(cluster_id))
     return ClusterDetailResponse(
         cluster_id=int(cluster_id),
         store_count=len(stores),
         stores=stores,
         top_recommended_skus=top,
+        store_columns=list(features.get("columns") or []),
+        store_rows=list(features.get("rows") or []),
     )
 
 

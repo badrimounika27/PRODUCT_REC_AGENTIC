@@ -10,8 +10,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "^/(pipeline|config|stores|recommendations|clusters|agents|ai|summary|analytics|api)": {
-        target: "http://127.0.0.1:8001",
+      "^/(pipeline|config|stores|recommendations|clusters|agents|ai|summary|analytics|api|seasonality|forecast)": {
+        target: "http://127.0.0.1:8000",
         changeOrigin: true,
       },
     },

@@ -174,6 +174,8 @@ export async function fetchClusterDetail(clusterId: number) {
     store_count: number;
     stores: string[];
     top_recommended_skus: Array<Record<string, unknown>>;
+    store_columns?: Array<{ id: string; label: string }>;
+    store_rows?: Array<Record<string, string | number | null>>;
   };
 }
 
