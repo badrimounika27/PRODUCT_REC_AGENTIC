@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart3,
@@ -10,7 +9,6 @@ import {
   Expand,
   Layers,
   Minimize2,
-  Search,
   Store,
   Tag,
   TrendingDown,
@@ -40,6 +38,7 @@ import {
 } from "../api";
 import { ClusterExplanationCard } from "../components/ClusterExplanationCard";
 import { ClusterProfileHeatmap } from "../components/ClusterProfileHeatmap";
+import { ClusterStoreTable } from "../components/ClusterStoreTable";
 import { Kpi } from "../components/Kpi";
 import { StrategyTable, type StrategyRow } from "../components/StrategyTable";
 import { chartTooltipProps } from "../components/analytics/chartTheme";
@@ -55,7 +54,7 @@ type Row = {
 
 type ClusterProduct = { sku: string; product: string; count: number };
 
-const STORES_PAGE_SIZE = 80;
+const STORES_PAGE_SIZE = 20;
 
 const fadeUp = {
   initial: { opacity: 0, y: 14 },
@@ -69,13 +68,17 @@ export function ClusterPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [listErr, setListErr] = useState<string | null>(null);
-  const [detail, setDetail] = useState<{ stores: string[]; topProducts: ClusterProduct[] } | null>(null);
+  const [detail, setDetail] = useState<{
+    stores: string[];
+    topProducts: ClusterProduct[];
+    storeColumns: Array<{ id: string; label: string }>;
+    storeRows: Array<Record<string, string | number | null>>;
+  } | null>(null);
   const [profileCols, setProfileCols] = useState<ClusterProfileColumn[]>([]);
   const [profileRows, setProfileRows] = useState<ClusterProfileRow[]>([]);
   const [topProductsByCluster, setTopProductsByCluster] = useState<Record<number, string[]>>({});
   const [storeQuery, setStoreQuery] = useState("");
   const [storePage, setStorePage] = useState(0);
-  const [selectedStore, setSelectedStore] = useState<string | null>(null);
   const [storesChartExpanded, setStoresChartExpanded] = useState(false);
   const [atAGlanceExpanded, setAtAGlanceExpanded] = useState(true);
 
@@ -189,24 +192,9 @@ export function ClusterPage() {
     [rows, topProductsByCluster],
   );
 
-  const filteredStores = useMemo(() => {
-    const stores = detail?.stores ?? [];
-    const q = storeQuery.trim().toLowerCase();
-    if (!q) return stores;
-    return stores.filter((s) => s.toLowerCase().includes(q));
-  }, [detail?.stores, storeQuery]);
-
-  const pagedStores = useMemo(() => {
-    const start = storePage * STORES_PAGE_SIZE;
-    return filteredStores.slice(start, start + STORES_PAGE_SIZE);
-  }, [filteredStores, storePage]);
-
-  const storePageCount = Math.max(1, Math.ceil(filteredStores.length / STORES_PAGE_SIZE));
-
   useEffect(() => {
     setStoreQuery("");
     setStorePage(0);
-    setSelectedStore(null);
   }, [selected]);
 
   useEffect(() => {
@@ -261,6 +249,8 @@ export function ClusterPage() {
             product: String(x.PRODUCT_NAME ?? "—"),
             count: Number(x.count ?? 0),
           })),
+          storeColumns: d.store_columns ?? [],
+          storeRows: d.store_rows ?? [],
         }),
       )
       .catch(() => setDetail(null));
@@ -463,36 +453,8 @@ export function ClusterPage() {
         </div>
       ) : null}
 
-      {/* Cluster profile heatmap */}
-      <motion.section
-        {...fadeUp}
-        transition={{ duration: 0.45, delay: 0.1 }}
-        className="rounded-2xl border border-surface-border/80 bg-surface-card/70 p-5 shadow-lg shadow-black/20 backdrop-blur-sm sm:p-8"
-      >
-        <h2 className="font-display text-lg font-semibold text-slate-100">Cluster profile</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
-          Each column summarizes how stores in a cluster behave on average.{" "}
-          <span className="text-slate-400">
-            <span className="font-medium text-slate-300">Avg monthly net spend</span> is typical revenue per month;{" "}
-            <span className="font-medium text-slate-300">avg invoice amount</span> is basket size per visit;{" "}
-            <span className="font-medium text-slate-300">avg invoices per month</span> is how often customers shop;{" "}
-            <span className="font-medium text-slate-300">avg days between purchases</span> captures visit cadence;{" "}
-            <span className="font-medium text-slate-300">products per invoice</span> reflects basket breadth.{" "}
-            <span className="font-medium text-slate-300">Category mix</span> shows Men / Women / Kids share of sales.
-          </span>
-        </p>
-        <div className="mt-5">
-          <ClusterProfileHeatmap
-            columns={profileCols}
-            rows={profileRows}
-            selectedClusterId={selected}
-            onSelectCluster={selectCluster}
-          />
-        </div>
-      </motion.section>
-
       {/* Charts — resizable split + expand */}
-      <motion.section {...fadeUp} transition={{ duration: 0.45, delay: 0.15 }} className="min-h-[340px]">
+      <motion.section {...fadeUp} transition={{ duration: 0.45, delay: 0.1 }} className="min-h-[340px]">
         <Group orientation="horizontal" className="flex min-h-[340px] w-full" id="clusters-chart-split">
           <Panel defaultSize="58" minSize="32" className="min-w-0" id="stores-chart">
             <div className="mr-1.5 flex h-full flex-col rounded-2xl border border-surface-border/80 bg-surface-card/70 p-5 shadow-lg shadow-black/15 backdrop-blur-sm sm:p-6">
@@ -622,102 +584,18 @@ export function ClusterPage() {
             transition={{ duration: 0.35 }}
             className="space-y-8 scroll-mt-24"
           >
-            {/* Section 1 — Stores */}
-            <section className="rounded-2xl border border-surface-border/80 bg-surface-card/70 p-5 shadow-lg shadow-black/20 backdrop-blur-sm sm:p-8">
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <h3 className="font-display text-lg font-semibold text-slate-100">
-                    Stores in Cluster {selected}
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {(detail?.stores?.length ?? 0).toLocaleString()} stores
-                    {storeQuery.trim()
-                      ? ` · ${filteredStores.length.toLocaleString()} match “${storeQuery.trim()}”`
-                      : ""}
-                  </p>
-                </div>
-                <div className="relative w-full max-w-xs">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                  <input
-                    type="search"
-                    value={storeQuery}
-                    onChange={(e) => setStoreQuery(e.target.value)}
-                    placeholder="Search store ID…"
-                    className="w-full rounded-xl border border-surface-border bg-surface px-9 py-2 text-sm text-slate-200 outline-none transition placeholder:text-slate-600 focus:border-accent/40 focus:ring-2 focus:ring-accent/20"
-                  />
-                </div>
-              </div>
+            <ClusterStoreTable
+              clusterId={selected}
+              columns={detail?.storeColumns ?? []}
+              rows={detail?.storeRows ?? []}
+              storeQuery={storeQuery}
+              onStoreQueryChange={setStoreQuery}
+              storePage={storePage}
+              onStorePageChange={setStorePage}
+              pageSize={STORES_PAGE_SIZE}
+              loading={loading && !detail}
+            />
 
-              {pagedStores.length ? (
-                <>
-                  <ul className="mt-5 flex max-h-56 flex-wrap gap-2 overflow-y-auto pr-1">
-                    {pagedStores.map((s, i) => {
-                      const active = selectedStore === s;
-                      return (
-                        <motion.li
-                          key={s}
-                          initial={{ opacity: 0, scale: 0.94 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: Math.min(i * 0.01, 0.3), duration: 0.2 }}
-                        >
-                          <Link
-                            to={`/recommendations?store=${encodeURIComponent(s)}`}
-                            onClick={() => setSelectedStore(s)}
-                            className={`inline-flex rounded-lg border px-2.5 py-1.5 text-xs font-medium transition duration-150 ${
-                              active
-                                ? "border-accent bg-accent/20 text-accent ring-1 ring-accent/40"
-                                : "border-accent/30 bg-surface text-accent hover:border-accent/60 hover:bg-accent/10"
-                            }`}
-                            title="Open recommendations (future expansion placeholder)"
-                          >
-                            {s}
-                          </Link>
-                        </motion.li>
-                      );
-                    })}
-                  </ul>
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-xs text-slate-600">
-                      Showing {storePage * STORES_PAGE_SIZE + 1}–
-                      {Math.min((storePage + 1) * STORES_PAGE_SIZE, filteredStores.length)} of{" "}
-                      {filteredStores.length.toLocaleString()}
-                      {filteredStores.length < (detail?.stores.length ?? 0)
-                        ? ` (filtered from ${(detail?.stores.length ?? 0).toLocaleString()})`
-                        : ""}
-                    </p>
-                    {storePageCount > 1 ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          disabled={storePage <= 0}
-                          onClick={() => setStorePage((p) => Math.max(0, p - 1))}
-                          className="rounded-lg border border-surface-border px-3 py-1.5 text-xs text-slate-300 transition enabled:hover:bg-surface-raised disabled:opacity-40"
-                        >
-                          Previous
-                        </button>
-                        <span className="text-xs text-slate-500">
-                          {storePage + 1} / {storePageCount}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={storePage >= storePageCount - 1}
-                          onClick={() => setStorePage((p) => Math.min(storePageCount - 1, p + 1))}
-                          className="rounded-lg border border-surface-border px-3 py-1.5 text-xs text-slate-300 transition enabled:hover:bg-surface-raised disabled:opacity-40"
-                        >
-                          Next
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                </>
-              ) : (
-                <p className="mt-5 text-sm text-slate-500">
-                  {loading ? "Loading stores…" : storeQuery.trim() ? "No stores match your search." : "No stores in this cluster."}
-                </p>
-              )}
-            </section>
-
-            {/* Section 2 — Cluster details */}
             <ClusterExplanationCard
               clusterLabel={`Cluster ${selected}`}
               meta={rows.find((r) => r.cluster_id === selected)}
@@ -729,9 +607,6 @@ export function ClusterPage() {
               loading={loading}
               error={err}
             />
-
-            {/* Section 3 — Strategy */}
-            <StrategyTable rows={strategyRows} selectedClusterId={selected} />
           </motion.div>
         ) : (
           <motion.div
@@ -747,9 +622,36 @@ export function ClusterPage() {
         )}
       </AnimatePresence>
 
-      {/* Always-visible strategy when nothing selected — preserve prior always-on playbook */}
-      {selected == null && strategyRows.length ? (
-        <StrategyTable rows={strategyRows} selectedClusterId={null} />
+      {/* Cluster profile — directly above Strategy playbook */}
+      <motion.section
+        {...fadeUp}
+        transition={{ duration: 0.45, delay: 0.15 }}
+        className="rounded-2xl border border-surface-border/80 bg-surface-card/70 p-5 shadow-lg shadow-black/20 backdrop-blur-sm sm:p-8"
+      >
+        <h2 className="font-display text-lg font-semibold text-slate-100">Cluster profile</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
+          Each column summarizes how stores in a cluster behave on average.{" "}
+          <span className="text-slate-400">
+            <span className="font-medium text-slate-300">Avg monthly net spend</span> is typical revenue per month;{" "}
+            <span className="font-medium text-slate-300">avg invoice amount</span> is basket size per visit;{" "}
+            <span className="font-medium text-slate-300">avg invoices per month</span> is how often customers shop;{" "}
+            <span className="font-medium text-slate-300">avg days between purchases</span> captures visit cadence;{" "}
+            <span className="font-medium text-slate-300">products per invoice</span> reflects basket breadth.{" "}
+            <span className="font-medium text-slate-300">Category mix</span> shows Men / Women / Kids share of sales.
+          </span>
+        </p>
+        <div className="mt-5">
+          <ClusterProfileHeatmap
+            columns={profileCols}
+            rows={profileRows}
+            selectedClusterId={selected}
+            onSelectCluster={selectCluster}
+          />
+        </div>
+      </motion.section>
+
+      {strategyRows.length ? (
+        <StrategyTable rows={strategyRows} selectedClusterId={selected} />
       ) : null}
     </div>
   );
@@ -782,7 +684,7 @@ function StoresPerClusterChart({
         <CartesianGrid strokeDasharray="3 3" stroke="#2a3344" />
         <XAxis dataKey="id" stroke="#64748b" fontSize={12} />
         <YAxis stroke="#64748b" fontSize={11} />
-        <Tooltip {...chartTooltipProps} />
+        <Tooltip {...chartTooltipProps} cursor={false} />
         <Bar
           dataKey="stores"
           radius={[6, 6, 0, 0]}
