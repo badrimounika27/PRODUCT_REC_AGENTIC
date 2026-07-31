@@ -26,6 +26,7 @@ from agents import AGENT_REGISTRY
 from agents.orchestrator_agent import OrchestratorAgent
 from config import get_effective_config, save_runtime_overrides
 from api.ai_routes import router as ai_router
+from api.b2c_routes import router as b2c_router
 from api.analytics import (
     compute_cluster_breakdown,
     compute_cluster_profile,
@@ -590,6 +591,7 @@ def get_store_spend_history(store_id: str) -> dict[str, Any]:
 
 app.include_router(forecast_router)
 app.include_router(ai_router)
+app.include_router(b2c_router)
 
 
 # ---------- Static UI (Vite SPA build at ../frontend/dist) ----------

@@ -222,3 +222,159 @@ export async function postExplainRecommendation(storeId: string, skuCode: string
     }),
   )) as { explanation: string };
 }
+
+/* ============================================================================
+ * B2C (customer-behavior) API — served by backend/api/b2c_routes.py
+ * ==========================================================================*/
+
+export type B2CSegmentSummary = {
+  cluster_id: number;
+  cluster_persona: string;
+  user_count: number;
+  share: number;
+  avg_buy_count: number;
+  avg_pv_count: number;
+  avg_recency_days: number;
+  avg_buy_share: number;
+};
+
+export type B2CSummary = {
+  users: number;
+  buyers: number;
+  buyer_rate: number;
+  total_events: number;
+  pv_count: number;
+  cart_count: number;
+  fav_count: number;
+  buy_count: number;
+  pv_to_buy_rate: number;
+  cart_to_buy_rate: number;
+  unique_items: number;
+  unique_categories: number;
+  date_min?: string | null;
+  date_max?: string | null;
+  segments: Array<{
+    cluster_id: number;
+    cluster_persona: string;
+    user_count: number;
+    share: number;
+  }>;
+};
+
+export type B2CCustomerListItem = {
+  user_id: number;
+  cluster_id: number;
+  cluster_persona: string;
+  total_events: number;
+  buy_count: number;
+  pv_count: number;
+  recency_days: number;
+  top_category: number;
+};
+
+export type B2CCustomerListResponse = {
+  total: number;
+  limit: number;
+  offset: number;
+  customers: B2CCustomerListItem[];
+};
+
+export type B2CCustomerDetail = {
+  found: boolean;
+  user_id: number;
+  cluster_id?: number;
+  cluster_persona?: string;
+  features: Record<string, number | string>;
+  top_recommendations: Array<{
+    rank: number;
+    item_id: number;
+    score: number;
+    reason: string;
+  }>;
+};
+
+export type B2CSegmentDetail = {
+  found: boolean;
+  cluster_id: number;
+  cluster_persona?: string;
+  user_count: number;
+  share: number;
+  profile: Record<string, number>;
+  top_items: Array<{ item_id: number; users: number; avg_score: number }>;
+  sample_users: number[];
+};
+
+export type B2CFunnelResponse = {
+  overall: Record<string, number | string | null>;
+  by_date: Array<Record<string, number | string>>;
+  top_categories: Array<Record<string, number | string>>;
+};
+
+export type B2CBundle = {
+  item_a: number;
+  item_b: number;
+  pair_count: number;
+  support: number;
+  confidence: number;
+  lift: number;
+};
+
+export type B2CBundleListResponse = {
+  total: number;
+  bundles: B2CBundle[];
+};
+
+export async function fetchB2CSummary() {
+  return (await parseJson(await fetch("/api/b2c/summary"))) as B2CSummary;
+}
+
+export async function fetchB2CCustomers(params: {
+  limit?: number;
+  offset?: number;
+  segment?: number;
+  persona?: string;
+  minBuys?: number;
+  sort?: "buy_count" | "pv_count" | "total_events" | "recency_days" | "user_id";
+  order?: "asc" | "desc";
+} = {}) {
+  const sp = new URLSearchParams();
+  if (params.limit != null) sp.set("limit", String(params.limit));
+  if (params.offset != null) sp.set("offset", String(params.offset));
+  if (params.segment != null) sp.set("segment", String(params.segment));
+  if (params.persona) sp.set("persona", params.persona);
+  if (params.minBuys != null) sp.set("min_buys", String(params.minBuys));
+  if (params.sort) sp.set("sort", params.sort);
+  if (params.order) sp.set("order", params.order);
+  const qs = sp.toString();
+  const url = qs ? `/api/b2c/customers?${qs}` : "/api/b2c/customers";
+  return (await parseJson(await fetch(url))) as B2CCustomerListResponse;
+}
+
+export async function fetchB2CCustomer(userId: number) {
+  return (await parseJson(
+    await fetch(`/api/b2c/customers/${encodeURIComponent(String(userId))}`),
+  )) as B2CCustomerDetail;
+}
+
+export async function fetchB2CSegments() {
+  return (await parseJson(await fetch("/api/b2c/segments"))) as {
+    segments: B2CSegmentSummary[];
+  };
+}
+
+export async function fetchB2CSegmentDetail(clusterId: number, sampleSize = 25) {
+  const sp = new URLSearchParams({ sample_size: String(sampleSize) });
+  return (await parseJson(
+    await fetch(`/api/b2c/segments/${clusterId}?${sp.toString()}`),
+  )) as B2CSegmentDetail;
+}
+
+export async function fetchB2CFunnel(topCategories = 15) {
+  const sp = new URLSearchParams({ top_categories: String(topCategories) });
+  return (await parseJson(await fetch(`/api/b2c/funnel?${sp.toString()}`))) as B2CFunnelResponse;
+}
+
+export async function fetchB2CBundles(limit = 50, minLift = 0) {
+  const sp = new URLSearchParams({ limit: String(limit), min_lift: String(minLift) });
+  return (await parseJson(await fetch(`/api/b2c/bundles?${sp.toString()}`))) as B2CBundleListResponse;
+}

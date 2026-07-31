@@ -148,3 +148,29 @@ def engine_root() -> Path:
         if p.is_dir():
             return p
     return BACKEND_ROOT
+
+
+# ---------------------------------------------------------------------------
+# B2C (customer-behavior) paths — isolated from the B2B pipeline
+# ---------------------------------------------------------------------------
+
+# Default sample name; can be pointed at a larger sample via env var.
+B2C_INPUT_FILENAME = os.environ.get("B2C_INPUT_FILENAME", "user_behavior_sampled_50k.csv")
+
+# Reference "today" for RFM recency. UserBehavior 2017 data ends 2017-12-03,
+# so we use 2017-12-04 as the day-after-last snapshot date.
+B2C_REFERENCE_DATE = "2017-12-04"
+
+# Official raw data window (Nov 25 – Dec 3, 2017 UTC) — used to strip malformed rows.
+B2C_VALID_TS_MIN = 1511539200   # 2017-11-25 00:00:00 UTC
+B2C_VALID_TS_MAX = 1512432000   # 2017-12-05 00:00:00 UTC
+
+
+def b2c_input_path() -> Path:
+    """Sampled raw CSV that the B2C pipeline reads from."""
+    return BACKEND_ROOT / "data" / "raw" / B2C_INPUT_FILENAME
+
+
+def b2c_outputs_dir() -> Path:
+    """Directory where the B2C pipeline writes CSVs (read by /api/b2c/*)."""
+    return BACKEND_ROOT / "outputs" / "b2c"

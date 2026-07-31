@@ -50,6 +50,9 @@ archive/Product Recommendation Flow.pptx
 archive/
 backend/outputs/
 backend/data/raw/*.csv
+backend/data/raw/*.zip
+backend/data/**/*.zip
+*.gif
 # =============================================================================
 # Editor / IDE
 # =============================================================================

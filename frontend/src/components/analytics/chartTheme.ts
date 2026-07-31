@@ -4,19 +4,51 @@
 
 import type { CSSProperties } from "react";
 
-/** Tooltip: light text on dark panel (fixes default black label on hover) */
+/**
+ * Tooltip: theme-aware content styling.
+ *
+ * Uses CSS custom properties defined in index.css so the tooltip flips
+ * automatically between light and dark themes without any React
+ * re-render — the browser re-evaluates `rgb(var(--...))` on every paint.
+ *
+ * `cursor: false` disables Recharts' bar/line cursor so no highlight
+ * rectangle or guideline is drawn behind hovered elements. The tooltip
+ * popup itself still animates in smoothly on hover.
+ */
 export const chartTooltipProps = {
+  cursor: false,
   contentStyle: {
-    background: "#0f172a",
-    border: "1px solid #475569",
+    background: "rgb(var(--color-surface-card))",
+    border: "1px solid rgb(var(--color-surface-border))",
     borderRadius: "8px",
     fontSize: "12px",
-    color: "#f1f5f9",
-    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.35)",
+    color: "rgb(var(--color-slate-100))",
+    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.15)",
   } satisfies CSSProperties,
-  labelStyle: { color: "#e2e8f0", fontWeight: 600, marginBottom: "4px" },
-  itemStyle: { color: "#cbd5e1" },
+  labelStyle: {
+    color: "rgb(var(--color-slate-200))",
+    fontWeight: 600,
+    marginBottom: "4px",
+  },
+  itemStyle: {
+    color: "rgb(var(--color-slate-300))",
+  },
+  animationDuration: 180,
 };
+
+/**
+ * Compact number formatter for Y-axis ticks that would otherwise clip
+ * (e.g. "4,539,568" -> "4.5M"). Keeps axes narrow without needing extra
+ * left-margin per chart.
+ */
+const _compact = new Intl.NumberFormat("en", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+export function formatCompactNumber(v: number): string {
+  if (v == null || Number.isNaN(v)) return "";
+  return _compact.format(v);
+}
 
 /** Multi-series line charts — soft, muted hues (same families: teal, indigo, peach, rose, purple, sky, apricot, mint) */
 export const SERIES_LINE_COLORS = [

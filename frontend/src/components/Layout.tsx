@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   BarChart3,
+  Filter,
   GitBranch,
   LayoutDashboard,
   LineChart,
@@ -9,15 +10,23 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Sparkles,
+  Users,
+  UsersRound,
 } from "lucide-react";
 import { ResizableChartProvider } from "./analytics/ResizableChartCard";
 import { SettingsMenu } from "./SettingsMenu";
 
-const menuNav = [
+const storesNav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/clusters", label: "Clusters", icon: GitBranch },
   { to: "/recommendations", label: "Recommendations", icon: Sparkles },
   { to: "/analysis", label: "Analysis", icon: LineChart },
+];
+
+const customersNav = [
+  { to: "/customers", label: "Customers", icon: Users },
+  { to: "/customers/segments", label: "Segments", icon: UsersRound },
+  { to: "/analytics/funnel", label: "Funnel", icon: Filter },
 ];
 
 const toolsNav = [{ to: "/assistant", label: "Assistant", icon: MessageCircle }];
@@ -108,14 +117,33 @@ export function Layout() {
 
             <nav className="flex-1 overflow-y-auto px-2 py-3">
               <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
-                Menu
+                Stores (B2B)
               </p>
               <ul className="space-y-0.5">
-                {menuNav.map(({ to, label, icon: Icon }) => (
+                {storesNav.map(({ to, label, icon: Icon }) => (
                   <li key={to}>
                     <NavLink
                       to={to}
                       end={to === "/"}
+                      onClick={closeOnMobile}
+                      className={navItemClass}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{label}</span>
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+
+              <p className="mb-1 mt-4 px-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                Customers (B2C)
+              </p>
+              <ul className="space-y-0.5">
+                {customersNav.map(({ to, label, icon: Icon }) => (
+                  <li key={to}>
+                    <NavLink
+                      to={to}
+                      end={to === "/customers"}
                       onClick={closeOnMobile}
                       className={navItemClass}
                     >

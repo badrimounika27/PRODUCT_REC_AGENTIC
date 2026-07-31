@@ -97,11 +97,50 @@ body {
   }
 }
 
-/* Recharts SVG tooltip readability in light mode */
-:root:not(.dark) .recharts-default-tooltip {
-  background-color: #ffffff !important;
-  border-color: rgb(203 213 225) !important;
-  color: rgb(15 23 42) !important;
+/* ============================================================
+   Recharts — theme-aware chart chrome.
+
+   Individual chart files hardcode inline SVG attributes like
+   `stroke="#94a3b8"` or `fill="#94a3b8"` for axis lines, grid,
+   and tick labels. CSS `!important` on the Recharts class hooks
+   overrides those SVG presentation attributes, so every chart
+   in the app becomes theme-adaptive with zero per-chart edits.
+
+   Colors reference the same design-token variables defined in
+   `:root` / `:root.dark` above, so they flip automatically when
+   the user toggles between light and dark themes.
+   ============================================================ */
+
+/* Axis line + small tick marks */
+.recharts-cartesian-axis-line,
+.recharts-cartesian-axis-tick-line {
+  stroke: rgb(var(--color-slate-500)) !important;
+}
+
+/* Axis tick labels (the numbers/dates along X/Y) */
+.recharts-cartesian-axis-tick text {
+  fill: rgb(var(--color-slate-400)) !important;
+}
+
+/* Gridlines behind the plot area */
+.recharts-cartesian-grid line {
+  stroke: rgb(var(--color-surface-border)) !important;
+}
+
+/* Legend labels */
+.recharts-legend-item-text {
+  color: rgb(var(--color-slate-300)) !important;
+}
+
+/* Polar / radar charts — keep them consistent with cartesian */
+.recharts-polar-grid-angle line,
+.recharts-polar-grid-concentric-circle,
+.recharts-polar-grid-concentric-polygon {
+  stroke: rgb(var(--color-surface-border)) !important;
+}
+.recharts-polar-angle-axis-tick text,
+.recharts-polar-radius-axis-tick text {
+  fill: rgb(var(--color-slate-400)) !important;
 }
 
 /* ============================================================

@@ -19,6 +19,7 @@ import {
   YAxis,
 } from "recharts";
 import { fetchDashboardAnalytics, fetchSeasonalityByCategory, fetchSeasonalityL2Categories } from "../api";
+import { CustomerKpiStrip } from "../components/CustomerKpiStrip";
 import { Kpi } from "../components/Kpi";
 import { FeatureInsightsBoxPlot } from "../components/analytics/FeatureInsightsBoxPlot";
 import { ResizableChartCard } from "../components/analytics/ResizableChartCard";
@@ -251,6 +252,9 @@ export function Dashboard() {
           <p className="mt-2 text-xs text-slate-600">{String(overview.locations_note)}</p>
         ) : null}
       </header>
+
+      {/* B2C snapshot — silently hides if the B2C pipeline hasn't been run */}
+      <CustomerKpiStrip />
 
       {loading ? (
         <div className="animate-pulse space-y-8">
